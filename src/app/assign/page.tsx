@@ -569,7 +569,7 @@ function MemberZone({
                   {m.name}
                 </span>
                 <span
-                  className={`t-data text-lg text-[var(--color-ink-500)] ${isBumped ? "animate-count-bump" : ""}`}
+                  className={`t-data money-text text-lg text-[var(--color-ink-500)] ${isBumped ? "animate-count-bump" : ""}`}
                 >
                   <RollingCurrency value={memberTotal(m.id)} active={isBumped} />
                 </span>
@@ -853,7 +853,7 @@ function ItemCard({
           )}
         </div>
         <div className="mt-auto pt-2">
-          <span className="t-data text-lg text-[var(--color-ink-400)]">
+          <span className="t-data money-text text-lg text-[var(--color-ink-400)]">
             ₩{fmt(item.unitPrice)}
           </span>
         </div>
@@ -928,15 +928,18 @@ function RollingCurrency({
       <span aria-hidden>₩</span>
       {displayChars.map((char, index) => {
         if (char === " ") return null;
+        const isDigit = /\d/.test(char);
         const changed =
           active &&
-          /\d/.test(targetChars[index]) &&
+          isDigit &&
           previousChars[index] !== targetChars[index];
         return (
           <span
             key={`${index}-${targetChars[index]}`}
             aria-hidden
-            className={`rolling-amount__digit ${
+            className={`rolling-amount__char ${
+              isDigit ? "rolling-amount__digit" : "rolling-amount__separator"
+            } ${
               changed ? "rolling-amount__digit--changed" : ""
             }`}
             style={changed ? { animationDelay: `${index * 18}ms` } : undefined}
@@ -969,7 +972,7 @@ function MemberPreview({
         <span className="t-hand text-lg text-[var(--color-ink-500)]">
           <span className="text-xl">{member.name}</span>의 항목
         </span>
-        <span className="t-data text-xl text-[var(--color-ink-500)]">
+        <span className="t-data money-text text-xl text-[var(--color-ink-500)]">
           ₩{fmt(total)}
         </span>
       </div>
@@ -992,7 +995,7 @@ function MemberPreview({
                   <SplitBadge>{it.splitNotes[0]}</SplitBadge>
                 )}
               </div>
-              <span className="t-data text-lg text-[var(--color-ink-500)]">
+              <span className="t-data money-text text-lg text-[var(--color-ink-500)]">
                 ₩{fmt(it.amount)}
               </span>
             </li>

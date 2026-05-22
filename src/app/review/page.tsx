@@ -120,7 +120,7 @@ export default function ReviewPage() {
         {/* Total summary */}
         <div className="mt-6 flex items-end justify-between border-t-[2.5px] border-dashed border-[var(--color-ink-300)] pt-4">
           <span className="t-hand text-lg text-[var(--color-ink-400)]">합계</span>
-          <span className="t-data text-3xl font-bold text-[var(--color-ink-500)]">
+          <span className="t-data money-text text-3xl font-bold text-[var(--color-ink-500)]">
             ₩{fmt(total)}
           </span>
         </div>
@@ -239,7 +239,7 @@ function ItemRow({
             />
           </div>
         </div>
-        <div className="t-data justify-self-end text-lg font-semibold text-[var(--color-ink-500)]">
+        <div className="t-data money-text justify-self-end text-lg font-semibold text-[var(--color-ink-500)]">
           ₩{lineTotal.toLocaleString("ko-KR")}
         </div>
       </div>

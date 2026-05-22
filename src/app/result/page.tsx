@@ -122,7 +122,7 @@ export default function ResultPage() {
         {/* Grand total */}
         <div className="mb-7 text-center">
           <p className="t-hand text-base text-[var(--color-ink-300)]">총 정산 금액</p>
-          <p className="t-data mt-1 text-4xl font-bold text-[var(--color-ink-500)]">
+          <p className="t-data money-text mt-1 text-4xl font-bold text-[var(--color-ink-500)]">
             ₩{fmt(grandTotal)}
           </p>
         </div>
@@ -151,7 +151,7 @@ export default function ResultPage() {
                         항목 {r.items.length}개
                       </p>
                     </div>
-                    <span className="t-data text-2xl font-bold text-[var(--color-ink-500)]">
+                    <span className="t-data money-text text-2xl font-bold text-[var(--color-ink-500)]">
                       ₩{fmt(r.total)}
                     </span>
                     <span
@@ -189,7 +189,7 @@ export default function ResultPage() {
                                 <SplitBadge>{it.splitWith}명 나눔</SplitBadge>
                               )}
                             </div>
-                            <span className="t-data shrink-0 text-lg text-[var(--color-ink-500)]">
+                            <span className="t-data money-text shrink-0 text-lg text-[var(--color-ink-500)]">
                               ₩{fmt(it.amount)}
                             </span>
                           </li>
