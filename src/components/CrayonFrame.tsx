@@ -1,6 +1,6 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 
-type FilterId = "crayonWobble" | "crayonWobbleLight" | "crayonWobbleStrong";
+type FilterId = "crayonWobble" | "crayonWobbleLight" | "crayonWobbleStrong" | "none";
 
 interface CrayonFrameProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
@@ -40,7 +40,7 @@ export function CrayonFrame({
       <span
         aria-hidden
         className={`pointer-events-none absolute inset-0 ${visual}`}
-        style={{ filter: `url(#${filter})` }}
+        style={filter === "none" ? undefined : { filter: `url(#${filter})` }}
       />
       <div className={`relative ${contentClassName}`}>{children}</div>
     </div>

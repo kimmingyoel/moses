@@ -636,7 +636,7 @@ function ItemZone({
         </span>
         <span className="h-[1px] flex-1 bg-[var(--color-ink-200)]/40" />
         {selectedCount === 0 && (
-          <span className="t-hand text-sm text-[var(--color-ink-200)]">
+          <span className="t-hand text-base text-[var(--color-ink-200)]">
             먼저 사람을 골라 주세요
           </span>
         )}
@@ -750,6 +750,7 @@ function ItemCard({
       tabIndex={0}
       onPointerDown={(e) => {
         if (e.button !== 0) return;
+        e.preventDefault();
         const rect = e.currentTarget.getBoundingClientRect();
         dragRef.current = {
           pointerId: e.pointerId,
@@ -1011,7 +1012,7 @@ function SplitBadge({ children }: { children: React.ReactNode }) {
         className="pointer-events-none absolute inset-0 rounded-full border-[1.5px] border-[var(--color-ink-300)]"
         style={{ filter: "url(#crayonWobbleLight)" }}
       />
-      <span className="t-hand relative inline-block px-2 text-sm text-[var(--color-ink-300)]">
+      <span className="t-hand relative inline-block px-2 text-base text-[var(--color-ink-300)]">
         {children}
       </span>
     </span>

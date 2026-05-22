@@ -49,7 +49,7 @@ export default function ReviewPage() {
 
   return (
     <div className="pb-32">
-      <Sheet>
+      <Sheet performanceSafe>
         {/* Step + header */}
         <div className="mb-3 flex items-center gap-2">
           <span className="t-data text-base text-[var(--color-ink-200)]">
@@ -69,6 +69,7 @@ export default function ReviewPage() {
         {/* Receipt — list of editable item cards */}
         <CrayonFrame
           visual="rounded-2xl border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[4px_5px_0_rgba(24,22,15,0.6)]"
+          filter="none"
           contentClassName="px-3 py-4 sm:px-5"
         >
           <div className="mb-3 flex items-center gap-2">
@@ -127,6 +128,7 @@ export default function ReviewPage() {
         {hasInvalid && (
           <CrayonFrame
             visual="rounded-xl border-[2px] border-[var(--color-ink-300)] bg-[var(--color-paper-100)]"
+            filter="none"
             className="mt-4"
             contentClassName="t-hand flex items-center gap-2 px-3 py-2 text-base text-[var(--color-ink-400)]"
           >
@@ -141,6 +143,7 @@ export default function ReviewPage() {
         <div className="mx-auto w-full max-w-[720px] px-4 pb-4 sm:pb-6">
           <CrayonFrame
             visual="rounded-2xl border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[5px_6px_0_rgba(24,22,15,0.7)]"
+            filter="none"
             className="pointer-events-auto"
             contentClassName="flex items-center justify-between gap-3 px-4 py-3 sm:px-5"
           >
@@ -246,7 +249,7 @@ function ItemRow({
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="t-hand whitespace-nowrap text-xs uppercase tracking-wider text-[var(--color-ink-200)]">
+    <span className="t-hand whitespace-nowrap text-[0.9rem] uppercase tracking-wider text-[var(--color-ink-200)]">
       {children}
     </span>
   );

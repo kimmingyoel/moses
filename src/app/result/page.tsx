@@ -134,7 +134,7 @@ export default function ResultPage() {
             return (
               <li key={r.id}>
                 <CrayonFrame
-                  visual="rounded-2xl border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[4px_5px_0_rgba(24,22,15,0.65)]"
+                  visual="rounded-2xl border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)]"
                   className="overflow-hidden"
                 >
                   <button
@@ -147,7 +147,7 @@ export default function ResultPage() {
                       <p className="t-hand text-xl leading-tight text-[var(--color-ink-500)]">
                         {r.name}
                       </p>
-                      <p className="t-hand text-sm text-[var(--color-ink-300)]">
+                      <p className="t-hand text-base text-[var(--color-ink-300)]">
                         항목 {r.items.length}개
                       </p>
                     </div>
@@ -163,8 +163,13 @@ export default function ResultPage() {
                   </button>
 
                   {/* Expanded detail */}
-                  {isOpen && (
-                    <div className="detail-panel-open border-t-[2px] border-dashed border-[var(--color-ink-200)] px-4 py-3">
+                  <div
+                    className={`result-detail ${
+                      isOpen ? "result-detail--open" : ""
+                    }`}
+                    aria-hidden={!isOpen}
+                  >
+                    <div className="border-t-[2px] border-dashed border-[var(--color-ink-200)] px-4 py-3">
                       <ul className="divide-y divide-dashed divide-[var(--color-ink-200)]/60">
                         {r.items.map((it, idx) => (
                           <li
@@ -191,7 +196,7 @@ export default function ResultPage() {
                         ))}
                       </ul>
                     </div>
-                  )}
+                  </div>
                 </CrayonFrame>
               </li>
             );
@@ -227,7 +232,7 @@ export default function ResultPage() {
         </div>
 
         {/* Footnote */}
-        <p className="t-hand mt-6 text-center text-sm text-[var(--color-ink-200)]">
+        <p className="t-hand mt-6 text-center text-base text-[var(--color-ink-200)]">
           총무가 대표 결제하고, 위 금액을 받아주세요 ☕
         </p>
       </Sheet>
@@ -244,7 +249,7 @@ function SplitBadge({ children }: { children: React.ReactNode }) {
         className="pointer-events-none absolute inset-0 rounded-full border-[1.5px] border-[var(--color-ink-300)]"
         style={{ filter: "url(#crayonWobbleLight)" }}
       />
-      <span className="t-hand relative inline-block px-2 text-sm text-[var(--color-ink-300)]">
+      <span className="t-hand relative inline-block px-2 text-base text-[var(--color-ink-300)]">
         {children}
       </span>
     </span>

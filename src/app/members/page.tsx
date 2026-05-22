@@ -218,7 +218,7 @@ function OcrBanner({
               {done ? "영수증 분석 완료!" : "영수증 분석 중..."}
             </p>
             {!done && (
-              <span className="t-hand inline-flex items-center gap-0.5 text-sm text-[var(--color-ink-200)]">
+              <span className="t-hand inline-flex items-center gap-0.5 text-base text-[var(--color-ink-200)]">
                 글자를 하나하나 읽고 있어요
                 <span className="dot-1">.</span>
                 <span className="dot-2">.</span>
@@ -226,7 +226,7 @@ function OcrBanner({
               </span>
             )}
             {done && (
-              <span className="t-hand text-sm text-[var(--color-ink-300)]">
+              <span className="t-hand text-base text-[var(--color-ink-300)]">
                 항목을 확인하러 가볼까요?
               </span>
             )}

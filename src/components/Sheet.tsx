@@ -2,6 +2,7 @@ import type { HTMLAttributes, PropsWithChildren } from "react";
 
 type SheetProps = PropsWithChildren<HTMLAttributes<HTMLDivElement>> & {
   compact?: boolean;
+  performanceSafe?: boolean;
 };
 
 /**
@@ -15,6 +16,7 @@ export function Sheet({
   children,
   className = "",
   compact = false,
+  performanceSafe = false,
 }: SheetProps) {
   const padding = compact
     ? "px-5 py-6 sm:px-8 sm:py-8"
@@ -26,7 +28,7 @@ export function Sheet({
       <div
         aria-hidden
         className="absolute inset-0 translate-x-[6px] translate-y-[8px] rounded-[22px] bg-[var(--color-ink-400)]/85"
-        style={{ filter: "url(#crayonWobble)" }}
+        style={performanceSafe ? undefined : { filter: "url(#crayonWobble)" }}
       />
       {/* Paper card — visual rendered first in DOM so content paints over it */}
       <div className={`relative ${className}`}>
@@ -35,7 +37,7 @@ export function Sheet({
           className="sheet pointer-events-none absolute inset-0 rounded-[22px]"
           style={{
             border: "3px solid var(--color-ink-500)",
-            filter: "url(#crayonWobble)",
+            ...(performanceSafe ? {} : { filter: "url(#crayonWobble)" }),
           }}
         />
         <div className={`relative ${padding}`}>{children}</div>
