@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { CrayonFilters } from "@/components/CrayonFilters";
 
 export const metadata: Metadata = {
-  title: "Moses",
-  description: "Moses UI workspace",
+  title: "모세 — 영수증 더치페이",
+  description: "영수증 하나면 정산 끝. 모세 — 영수증 기반 더치페이 서비스.",
 };
 
 export default function RootLayout({
@@ -13,7 +14,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body>{children}</body>
+      <body className="min-h-screen">
+        <CrayonFilters />
+        <main className="mx-auto w-full max-w-[720px] px-4 py-8 sm:py-12">
+          {children}
+        </main>
+      </body>
     </html>
   );
 }

@@ -1,1 +1,341 @@
 @import "tailwindcss";
+
+/* ──────────── Fonts ──────────── */
+
+@font-face {
+  font-family: "PyeongChangPeace";
+  src: url("/fonts/평창평화체/PyeongChangPeace-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "DXTypeB";
+  src: url("/fonts/DXTypeB-KSCpc-EUC-H.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "OnGeurip-Nuka";
+  src: url("/fonts/온글잎 누카.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ──────────── Design tokens ──────────── */
+
+@theme {
+  --font-logo: "PyeongChangPeace", serif;
+  --font-data: "DXTypeB", "Courier New", monospace;
+  --font-hand: "OnGeurip-Nuka", system-ui, sans-serif;
+
+  /* Grayscale palette — paper to ink */
+  --color-paper-50: #f6f1e6;   /* warm aged paper */
+  --color-paper-100: #ece4d2;  /* soft cream */
+  --color-paper-200: #ddd2bb;  /* deeper cream */
+  --color-ink-100: #c7bfae;    /* light pencil */
+  --color-ink-200: #8e8678;    /* mid pencil */
+  --color-ink-300: #5b554b;    /* dark pencil */
+  --color-ink-400: #2e2b25;    /* charcoal */
+  --color-ink-500: #18160f;    /* deep black */
+}
+
+/* ──────────── Base ──────────── */
+
+html, body {
+  background-color: var(--color-paper-100);
+  color: var(--color-ink-400);
+  font-family: var(--font-hand);
+  min-height: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-image:
+    /* coarse paper grain */
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.18  0 0 0 0 0.16  0 0 0 0 0.13  0 0 0 0.10 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"),
+    /* soft mottled tonal variation */
+    radial-gradient(circle at 18% 14%, rgba(120, 100, 70, 0.10) 0%, transparent 38%),
+    radial-gradient(circle at 82% 78%, rgba(120, 100, 70, 0.09) 0%, transparent 42%),
+    linear-gradient(180deg, var(--color-paper-50) 0%, var(--color-paper-100) 100%);
+  background-size: 240px 240px, auto, auto, auto;
+  background-attachment: fixed;
+}
+
+/* Smooth route transitions — page content fades in */
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 220ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ──────────── Hand-drawn utilities ──────────── */
+
+/* Wobble: applies the crayon-distortion SVG filter */
+.wobble {
+  filter: url(#crayonWobble);
+}
+
+.wobble-strong {
+  filter: url(#crayonWobbleStrong);
+}
+
+.wobble-light {
+  filter: url(#crayonWobbleLight);
+}
+
+/* Paper sheet — the central card */
+.sheet {
+  background-color: var(--color-paper-50);
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.15  0 0 0 0 0.12  0 0 0 0 0.08  0 0 0 0.07 0'/></filter><rect width='100%25' height='100%25' filter='url(%23p)'/></svg>"),
+    radial-gradient(circle at 20% 8%, rgba(140, 110, 60, 0.06), transparent 50%),
+    radial-gradient(circle at 80% 92%, rgba(140, 110, 60, 0.07), transparent 50%);
+  position: relative;
+}
+
+/* Sheet edges — rough hand-cut paper feel via clip-path */
+.sheet-edge {
+  --edge-shadow-1: 8px 10px 0 rgba(24, 22, 15, 0.16);
+  --edge-shadow-2: 2px 3px 0 rgba(24, 22, 15, 0.08);
+  box-shadow: var(--edge-shadow-1), var(--edge-shadow-2);
+}
+
+/* Crayon box — chunky hand-drawn outline using an inline SVG mask */
+.crayon-box {
+  position: relative;
+  border: 3px solid var(--color-ink-400);
+  border-radius: 14px;
+  background: var(--color-paper-50);
+  box-shadow: 5px 6px 0 rgba(24, 22, 15, 0.85);
+  filter: url(#crayonWobble);
+}
+
+.crayon-box-soft {
+  position: relative;
+  border: 2.5px solid var(--color-ink-300);
+  border-radius: 12px;
+  background: var(--color-paper-50);
+  box-shadow: 3px 4px 0 rgba(24, 22, 15, 0.55);
+  filter: url(#crayonWobbleLight);
+}
+
+.crayon-line {
+  border: 2.5px solid var(--color-ink-400);
+  filter: url(#crayonWobbleLight);
+}
+
+/* Hatching pattern — uneven crayon shading */
+.hatch {
+  background-image:
+    repeating-linear-gradient(
+      135deg,
+      transparent 0 4px,
+      rgba(24, 22, 15, 0.18) 4px 5px,
+      transparent 5px 9px
+    );
+}
+
+.hatch-dense {
+  background-image:
+    repeating-linear-gradient(
+      135deg,
+      transparent 0 3px,
+      rgba(24, 22, 15, 0.32) 3px 4.5px,
+      transparent 4.5px 7px
+    );
+}
+
+/* Hand-drawn button base */
+.crayon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.4rem;
+  font-family: var(--font-hand);
+  font-size: 1.05rem;
+  color: var(--color-paper-50);
+  background: var(--color-ink-400);
+  border: 3px solid var(--color-ink-500);
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 4px 5px 0 rgba(24, 22, 15, 0.7);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+  filter: url(#crayonWobble);
+}
+
+.crayon-btn:hover:not(:disabled) {
+  transform: translate(-1px, -2px);
+  box-shadow: 6px 7px 0 rgba(24, 22, 15, 0.7);
+}
+
+.crayon-btn:active:not(:disabled) {
+  transform: translate(2px, 3px);
+  box-shadow: 2px 2px 0 rgba(24, 22, 15, 0.6);
+}
+
+.crayon-btn:disabled {
+  background: var(--color-ink-100);
+  color: var(--color-ink-200);
+  border-color: var(--color-ink-200);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.crayon-btn--ghost {
+  background: transparent;
+  color: var(--color-ink-400);
+  border-color: var(--color-ink-400);
+  box-shadow: 3px 4px 0 rgba(24, 22, 15, 0.4);
+}
+
+.crayon-btn--ghost:hover:not(:disabled) {
+  background: rgba(24, 22, 15, 0.04);
+}
+
+.crayon-btn--small {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.95rem;
+  border-width: 2.5px;
+  box-shadow: 3px 4px 0 rgba(24, 22, 15, 0.6);
+}
+
+/* Hand-drawn text input */
+.crayon-input {
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  font-family: var(--font-hand);
+  font-size: 1.05rem;
+  color: var(--color-ink-500);
+  background: rgba(255, 252, 244, 0.7);
+  border: 2.5px solid var(--color-ink-400);
+  border-radius: 10px;
+  outline: none;
+  filter: url(#crayonWobbleLight);
+  box-shadow: inset 0 0 0 1px rgba(24, 22, 15, 0.05);
+}
+
+.crayon-input::placeholder {
+  color: var(--color-ink-200);
+  font-family: var(--font-hand);
+}
+
+.crayon-input:focus {
+  background: rgba(255, 252, 244, 0.95);
+  box-shadow: inset 0 0 0 1px rgba(24, 22, 15, 0.2), 2px 3px 0 rgba(24, 22, 15, 0.5);
+}
+
+/* Crayon-textured underline for inline-edit cells */
+.crayon-underline {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 6' preserveAspectRatio='none'><path d='M2 4 Q 18 1, 32 4 T 62 4 T 92 3 T 118 4' stroke='%232e2b25' stroke-width='2.2' fill='none' stroke-linecap='round'/></svg>");
+  background-repeat: no-repeat;
+  background-size: 100% 6px;
+  background-position: bottom center;
+  padding-bottom: 6px;
+}
+
+/* Soft dashed crayon border (used for drag-zone reveal) */
+.crayon-dashed {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'><rect width='100%25' height='100%25' x='0' y='0' fill='none' stroke='%232e2b25' stroke-width='4' stroke-dasharray='14 9 4 9' rx='18' ry='18'/></svg>");
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  filter: url(#crayonWobble);
+}
+
+/* Text styles */
+.t-logo {
+  font-family: var(--font-logo);
+  letter-spacing: 0.01em;
+  color: var(--color-ink-500);
+}
+
+.t-hand {
+  font-family: var(--font-hand);
+  color: var(--color-ink-400);
+}
+
+.t-data {
+  font-family: var(--font-data);
+  color: var(--color-ink-500);
+  letter-spacing: 0.02em;
+}
+
+/* Simple shake/wobble animation for icons */
+@keyframes nudge {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  25% { transform: translateY(-3px) rotate(-3deg); }
+  50% { transform: translateY(-5px) rotate(2deg); }
+  75% { transform: translateY(-3px) rotate(-1deg); }
+}
+
+.animate-nudge {
+  animation: nudge 1.4s ease-in-out infinite;
+}
+
+@keyframes pencil-write {
+  0%, 100% { transform: rotate(-6deg) translateX(0); }
+  50% { transform: rotate(6deg) translateX(4px); }
+}
+
+.animate-pencil {
+  animation: pencil-write 0.9s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+
+@keyframes draw-in {
+  from { stroke-dashoffset: var(--draw-length, 800); opacity: 0.3; }
+  to { stroke-dashoffset: 0; opacity: 1; }
+}
+
+.animate-draw {
+  stroke-dasharray: var(--draw-length, 800);
+  animation: draw-in 0.8s ease-out forwards;
+}
+
+@keyframes dots-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+.dot-1 { animation: dots-pulse 1.2s ease-in-out infinite; }
+.dot-2 { animation: dots-pulse 1.2s ease-in-out 0.2s infinite; }
+.dot-3 { animation: dots-pulse 1.2s ease-in-out 0.4s infinite; }
+
+@keyframes wobble-slow {
+  0%, 100% { transform: rotate(-1deg); }
+  50% { transform: rotate(1deg); }
+}
+
+.animate-wobble {
+  animation: wobble-slow 3s ease-in-out infinite;
+}
+
+/* Counter roll — used by member totals */
+@keyframes count-bump {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+  100% { transform: translateY(0); }
+}
+
+.animate-count-bump {
+  animation: count-bump 0.36s ease-out;
+}
+
+/* Drag cursor */
+.draggable {
+  cursor: grab;
+  user-select: none;
+}
+.draggable:active {
+  cursor: grabbing;
+}
