@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sheet } from "@/components/Sheet";
+import { CrayonFrame } from "@/components/CrayonFrame";
 import {
   DoodleAvatar,
   DoodleRibbon,
@@ -132,9 +133,9 @@ export default function ResultPage() {
             const isOpen = expanded.has(r.id);
             return (
               <li key={r.id}>
-                <article
-                  className="overflow-hidden rounded-2xl border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[4px_5px_0_rgba(24,22,15,0.65)]"
-                  style={{ filter: "url(#crayonWobbleLight)" }}
+                <CrayonFrame
+                  visual="rounded-2xl border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[4px_5px_0_rgba(24,22,15,0.65)]"
+                  className="overflow-hidden"
                 >
                   <button
                     type="button"
@@ -183,14 +184,7 @@ export default function ResultPage() {
                                   </span>
                                 )}
                                 {it.splitWith && (
-                                  <span
-                                    className="t-hand inline-block rounded-full border-[1.5px] border-[var(--color-ink-300)] px-2 text-xs text-[var(--color-ink-300)]"
-                                    style={{
-                                      filter: "url(#crayonWobbleLight)",
-                                    }}
-                                  >
-                                    {it.splitWith}명 나눔
-                                  </span>
+                                  <SplitBadge>{it.splitWith}명 나눔</SplitBadge>
                                 )}
                               </div>
                               <span className="t-data text-[var(--color-ink-500)]">
@@ -202,7 +196,7 @@ export default function ResultPage() {
                       </div>
                     </div>
                   </div>
-                </article>
+                </CrayonFrame>
               </li>
             );
           })}
@@ -242,5 +236,21 @@ export default function ResultPage() {
         </p>
       </Sheet>
     </div>
+  );
+}
+
+/** A pill badge with wobbled outline and crisp label. */
+function SplitBadge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="relative inline-block">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 rounded-full border-[1.5px] border-[var(--color-ink-300)]"
+        style={{ filter: "url(#crayonWobbleLight)" }}
+      />
+      <span className="t-hand relative inline-block px-2 text-xs text-[var(--color-ink-300)]">
+        {children}
+      </span>
+    </span>
   );
 }

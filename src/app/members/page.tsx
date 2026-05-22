@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sheet } from "@/components/Sheet";
+import { CrayonFrame } from "@/components/CrayonFrame";
 import {
   DoodleClose,
   DoodleWritingPencil,
@@ -68,7 +69,7 @@ export default function MembersPage() {
 
         {/* Input row */}
         <div className="mb-7 flex items-center gap-3">
-          <div className="relative flex-1">
+          <div className="crayon-field flex-1">
             <input
               ref={inputRef}
               value={value}
@@ -135,9 +136,10 @@ export default function MembersPage() {
 
 function MemberCard({ name, onRemove }: { name: string; onRemove: () => void }) {
   return (
-    <div
-      className="relative inline-flex items-center gap-2 rounded-2xl border-[2.5px] border-[var(--color-ink-400)] bg-[var(--color-paper-50)] px-4 py-2 pr-3 shadow-[3px_4px_0_rgba(24,22,15,0.55)]"
-      style={{ filter: "url(#crayonWobbleLight)" }}
+    <CrayonFrame
+      visual="rounded-2xl border-[2.5px] border-[var(--color-ink-400)] bg-[var(--color-paper-50)] shadow-[3px_4px_0_rgba(24,22,15,0.55)]"
+      className="inline-block"
+      contentClassName="inline-flex items-center gap-2 px-4 py-2 pr-3"
     >
       <span className="t-hand text-lg text-[var(--color-ink-500)]">{name}</span>
       <button
@@ -148,22 +150,22 @@ function MemberCard({ name, onRemove }: { name: string; onRemove: () => void }) 
       >
         <DoodleClose className="h-4 w-4" tone="soft" />
       </button>
-    </div>
+    </CrayonFrame>
   );
 }
 
 function EmptyMembers() {
   return (
-    <div
-      className="grid place-items-center rounded-2xl border-[2.5px] border-dashed border-[var(--color-ink-200)] px-6 py-8 text-center"
-      style={{ filter: "url(#crayonWobbleLight)" }}
+    <CrayonFrame
+      visual="rounded-2xl border-[2.5px] border-dashed border-[var(--color-ink-200)]"
+      contentClassName="grid place-items-center px-6 py-8 text-center"
     >
       <p className="t-hand text-[var(--color-ink-300)]">
         아직 추가된 사람이 없어요.
         <br />
         위에서 이름을 적고 <span className="t-data">추가</span> 버튼을 눌러보세요.
       </p>
-    </div>
+    </CrayonFrame>
   );
 }
 
@@ -176,16 +178,17 @@ function OcrBanner({
   canProceed: boolean;
   onNext: () => void;
 }) {
+  const visual = done
+    ? "rounded-2xl border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[5px_6px_0_rgba(24,22,15,0.7)]"
+    : "rounded-2xl border-[2.5px] border-[var(--color-ink-200)] bg-[var(--color-paper-100)]/95 shadow-[3px_4px_0_rgba(24,22,15,0.35)]";
+
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30">
       <div className="mx-auto w-full max-w-[720px] px-4 pb-4 sm:pb-6">
-        <div
-          className={`pointer-events-auto relative flex items-center gap-3 rounded-2xl px-4 py-3 transition-all duration-300 sm:px-5 sm:py-4 ${
-            done
-              ? "border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[5px_6px_0_rgba(24,22,15,0.7)]"
-              : "border-[2.5px] border-[var(--color-ink-200)] bg-[var(--color-paper-100)]/95 shadow-[3px_4px_0_rgba(24,22,15,0.35)]"
-          }`}
-          style={{ filter: "url(#crayonWobbleLight)" }}
+        <CrayonFrame
+          visual={visual}
+          className="pointer-events-auto transition-all duration-300"
+          contentClassName="flex items-center gap-3 px-4 py-3 sm:px-5 sm:py-4"
         >
           {/* Icon */}
           <div className="shrink-0">
@@ -196,7 +199,7 @@ function OcrBanner({
             )}
           </div>
 
-          {/* Status text + sparkles when done */}
+          {/* Status text */}
           <div className="flex-1 leading-tight">
             <p
               className={`t-hand text-base sm:text-lg ${done ? "text-[var(--color-ink-500)]" : "text-[var(--color-ink-300)]"}`}
@@ -235,7 +238,7 @@ function OcrBanner({
           >
             {done ? "다음" : "분석 중..."}
           </button>
-        </div>
+        </CrayonFrame>
       </div>
     </div>
   );

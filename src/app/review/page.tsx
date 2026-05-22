@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sheet } from "@/components/Sheet";
+import { CrayonFrame } from "@/components/CrayonFrame";
 import { DoodleClose, DoodleExclaim } from "@/components/Doodles";
 
 type Item = {
@@ -66,9 +67,9 @@ export default function ReviewPage() {
         </div>
 
         {/* Receipt — list of editable item cards */}
-        <div
-          className="relative rounded-2xl border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] px-3 py-4 shadow-[4px_5px_0_rgba(24,22,15,0.6)] sm:px-5"
-          style={{ filter: "url(#crayonWobbleLight)" }}
+        <CrayonFrame
+          visual="rounded-2xl border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[4px_5px_0_rgba(24,22,15,0.6)]"
+          contentClassName="px-3 py-4 sm:px-5"
         >
           <div className="mb-3 flex items-center gap-2">
             <span className="t-hand text-sm text-[var(--color-ink-300)]">
@@ -99,18 +100,19 @@ export default function ReviewPage() {
           <button
             type="button"
             onClick={add}
-            className="t-hand mt-3 inline-flex items-center gap-2 text-[var(--color-ink-300)] hover:text-[var(--color-ink-500)]"
+            className="t-hand group mt-3 inline-flex items-center gap-2 text-[var(--color-ink-300)] hover:text-[var(--color-ink-500)]"
           >
-            <span
-              aria-hidden
-              className="grid h-7 w-7 place-items-center rounded-full border-[2.5px] border-[var(--color-ink-400)] text-[var(--color-ink-400)]"
-              style={{ filter: "url(#crayonWobbleLight)" }}
-            >
-              +
+            <span aria-hidden className="relative grid h-7 w-7 place-items-center">
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-0 rounded-full border-[2.5px] border-[var(--color-ink-400)]"
+                style={{ filter: "url(#crayonWobbleLight)" }}
+              />
+              <span className="relative text-[var(--color-ink-400)]">+</span>
             </span>
             <span className="text-lg">항목 추가</span>
           </button>
-        </div>
+        </CrayonFrame>
 
         {/* Total summary */}
         <div className="mt-6 flex items-end justify-between border-t-[2.5px] border-dashed border-[var(--color-ink-300)] pt-4">
@@ -121,22 +123,24 @@ export default function ReviewPage() {
         </div>
 
         {hasInvalid && (
-          <div
-            className="t-hand mt-4 flex items-center gap-2 rounded-xl border-[2px] border-[var(--color-ink-300)] bg-[var(--color-paper-100)] px-3 py-2 text-sm text-[var(--color-ink-400)]"
-            style={{ filter: "url(#crayonWobbleLight)" }}
+          <CrayonFrame
+            visual="rounded-xl border-[2px] border-[var(--color-ink-300)] bg-[var(--color-paper-100)]"
+            className="mt-4"
+            contentClassName="t-hand flex items-center gap-2 px-3 py-2 text-sm text-[var(--color-ink-400)]"
           >
             <DoodleExclaim className="h-5 w-5 shrink-0" tone="ink" />
             <span>비어 있거나 0인 칸을 채워야 다음으로 넘어갈 수 있어요.</span>
-          </div>
+          </CrayonFrame>
         )}
       </Sheet>
 
       {/* Bottom action bar */}
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30">
         <div className="mx-auto w-full max-w-[720px] px-4 pb-4 sm:pb-6">
-          <div
-            className="pointer-events-auto flex items-center justify-between gap-3 rounded-2xl border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] px-4 py-3 shadow-[5px_6px_0_rgba(24,22,15,0.7)] sm:px-5"
-            style={{ filter: "url(#crayonWobbleLight)" }}
+          <CrayonFrame
+            visual="rounded-2xl border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[5px_6px_0_rgba(24,22,15,0.7)]"
+            className="pointer-events-auto"
+            contentClassName="flex items-center justify-between gap-3 px-4 py-3 sm:px-5"
           >
             <button
               type="button"
@@ -153,7 +157,7 @@ export default function ReviewPage() {
             >
               확인
             </button>
-          </div>
+          </CrayonFrame>
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sheet } from "@/components/Sheet";
+import { CrayonFrame } from "@/components/CrayonFrame";
 import {
   DoodleAvatar,
   DoodleUndo,
@@ -227,26 +228,14 @@ export default function AssignPage() {
           {/* Undo / Redo */}
           <div className="flex items-center gap-1">
             {history.length > 0 && (
-              <button
-                type="button"
-                onClick={undo}
-                aria-label="되돌리기"
-                className="grid h-9 w-9 place-items-center rounded-lg border-[2px] border-[var(--color-ink-400)] bg-[var(--color-paper-50)] shadow-[2px_2px_0_rgba(24,22,15,0.6)] hover:translate-y-[-1px]"
-                style={{ filter: "url(#crayonWobbleLight)" }}
-              >
+              <IconButton onClick={undo} aria-label="되돌리기">
                 <DoodleUndo className="h-5 w-5" tone="dark" />
-              </button>
+              </IconButton>
             )}
             {redoStack.length > 0 && (
-              <button
-                type="button"
-                onClick={redo}
-                aria-label="다시 하기"
-                className="grid h-9 w-9 place-items-center rounded-lg border-[2px] border-[var(--color-ink-400)] bg-[var(--color-paper-50)] shadow-[2px_2px_0_rgba(24,22,15,0.6)] hover:translate-y-[-1px]"
-                style={{ filter: "url(#crayonWobbleLight)" }}
-              >
+              <IconButton onClick={redo} aria-label="다시 하기">
                 <DoodleRedo className="h-5 w-5" tone="dark" />
-              </button>
+              </IconButton>
             )}
           </div>
         </div>
@@ -282,9 +271,10 @@ export default function AssignPage() {
 
         {/* Selection hint */}
         {selected.size > 0 && (
-          <div
-            className="t-hand mt-3 inline-flex items-center gap-2 rounded-full border-[2px] border-[var(--color-ink-400)] bg-[var(--color-paper-50)] px-3 py-1 text-sm text-[var(--color-ink-400)]"
-            style={{ filter: "url(#crayonWobbleLight)" }}
+          <CrayonFrame
+            visual="rounded-full border-[2px] border-[var(--color-ink-400)] bg-[var(--color-paper-50)]"
+            className="mt-3 inline-block"
+            contentClassName="t-hand inline-flex items-center gap-2 px-3 py-1 text-sm text-[var(--color-ink-400)]"
           >
             <span className="t-data">{selected.size}</span>명이 함께 부담해요
             <button
@@ -294,7 +284,7 @@ export default function AssignPage() {
             >
               취소
             </button>
-          </div>
+          </CrayonFrame>
         )}
 
         {/* ─── Item zone OR preview ─── */}
@@ -332,25 +322,27 @@ export default function AssignPage() {
 
         {/* All done */}
         {allAssigned && (
-          <div
-            className="relative mt-6 flex items-center justify-center gap-2 rounded-2xl border-[3px] border-dashed border-[var(--color-ink-400)] bg-[var(--color-paper-100)] px-4 py-5 text-center"
-            style={{ filter: "url(#crayonWobbleLight)" }}
+          <CrayonFrame
+            visual="rounded-2xl border-[3px] border-dashed border-[var(--color-ink-400)] bg-[var(--color-paper-100)]"
+            className="mt-6"
+            contentClassName="flex items-center justify-center gap-2 px-4 py-5 text-center"
           >
             <DoodleSparkle className="h-5 w-5" tone="ink" aria-hidden />
             <p className="t-hand text-lg text-[var(--color-ink-500)]">
               모든 항목 배분 완료!
             </p>
             <DoodleSparkle className="h-5 w-5" tone="ink" aria-hidden />
-          </div>
+          </CrayonFrame>
         )}
       </Sheet>
 
       {/* Bottom action bar */}
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30">
         <div className="mx-auto w-full max-w-[720px] px-4 pb-4 sm:pb-6">
-          <div
-            className="pointer-events-auto flex items-center justify-between gap-3 rounded-2xl border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] px-4 py-3 shadow-[5px_6px_0_rgba(24,22,15,0.7)] sm:px-5"
-            style={{ filter: "url(#crayonWobbleLight)" }}
+          <CrayonFrame
+            visual="rounded-2xl border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[5px_6px_0_rgba(24,22,15,0.7)]"
+            className="pointer-events-auto"
+            contentClassName="flex items-center justify-between gap-3 px-4 py-3 sm:px-5"
           >
             <button
               type="button"
@@ -367,10 +359,31 @@ export default function AssignPage() {
             >
               정산 완료
             </button>
-          </div>
+          </CrayonFrame>
         </div>
       </div>
     </div>
+  );
+}
+
+/* IconButton — square button with wobbled outline, crisp icon */
+function IconButton({
+  children,
+  ...rest
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      type="button"
+      className="relative grid h-9 w-9 place-items-center transition-transform hover:translate-y-[-1px]"
+      {...rest}
+    >
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 rounded-lg border-[2px] border-[var(--color-ink-400)] bg-[var(--color-paper-50)] shadow-[2px_2px_0_rgba(24,22,15,0.6)]"
+        style={{ filter: "url(#crayonWobbleLight)" }}
+      />
+      <span className="relative">{children}</span>
+    </button>
   );
 }
 
@@ -425,6 +438,12 @@ function MemberZone({
             : huddleActive && !isSelected
               ? { opacity: 0.35 }
               : undefined;
+          const visualClass =
+            isSelected || isDropTarget
+              ? "border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[4px_5px_0_rgba(24,22,15,0.7)]"
+              : isHovered
+                ? "border-[var(--color-ink-400)] bg-[var(--color-paper-50)] shadow-[3px_4px_0_rgba(24,22,15,0.55)]"
+                : "border-[var(--color-ink-300)] bg-[var(--color-paper-100)] shadow-[2px_3px_0_rgba(24,22,15,0.35)]";
           return (
             <button
               key={m.id}
@@ -447,33 +466,37 @@ function MemberZone({
                 }
                 onDragLeaveMember();
               }}
-              className={`group relative flex w-[110px] flex-col items-center gap-1.5 rounded-2xl border-[2.5px] px-3 py-3 transition-all duration-200 sm:w-[124px] ${
-                isSelected || isDropTarget
-                  ? "-translate-y-1 border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[4px_5px_0_rgba(24,22,15,0.7)]"
-                  : isHovered
-                    ? "border-[var(--color-ink-400)] bg-[var(--color-paper-50)] shadow-[3px_4px_0_rgba(24,22,15,0.55)]"
-                    : "border-[var(--color-ink-300)] bg-[var(--color-paper-100)] shadow-[2px_3px_0_rgba(24,22,15,0.35)]"
+              className={`group relative w-[110px] transition-all duration-200 sm:w-[124px] ${
+                isSelected || isDropTarget ? "-translate-y-1" : ""
               }`}
-              style={{
-                filter: "url(#crayonWobbleLight)",
-                ...huddleStyle,
-              }}
+              style={huddleStyle}
             >
-              <DoodleAvatar name={m.name} size={52} />
-              <span className="t-hand text-[var(--color-ink-500)]">
-                {m.name}
-              </span>
               <span
-                className={`t-data text-base text-[var(--color-ink-500)] ${isBumped ? "animate-count-bump" : ""}`}
-              >
-                ₩{fmt(memberTotal(m.id))}
+                aria-hidden
+                className={`pointer-events-none absolute inset-0 rounded-2xl border-[2.5px] ${visualClass}`}
+                style={{ filter: "url(#crayonWobbleLight)" }}
+              />
+              <span className="relative flex flex-col items-center gap-1.5 px-3 py-3">
+                <DoodleAvatar name={m.name} size={52} />
+                <span className="t-hand text-[var(--color-ink-500)]">
+                  {m.name}
+                </span>
+                <span
+                  className={`t-data text-base text-[var(--color-ink-500)] ${isBumped ? "animate-count-bump" : ""}`}
+                >
+                  ₩{fmt(memberTotal(m.id))}
+                </span>
               </span>
               {isSelected && (
-                <span
-                  className="absolute -top-2 -right-2 grid h-6 w-6 place-items-center rounded-full border-[2px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] text-[var(--color-ink-500)] shadow-[2px_2px_0_rgba(24,22,15,0.5)]"
-                  style={{ filter: "url(#crayonWobbleLight)" }}
-                >
-                  <span className="t-data text-xs">✓</span>
+                <span className="absolute -top-2 -right-2 grid h-6 w-6 place-items-center">
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 rounded-full border-[2px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[2px_2px_0_rgba(24,22,15,0.5)]"
+                    style={{ filter: "url(#crayonWobbleLight)" }}
+                  />
+                  <span className="relative t-data text-xs text-[var(--color-ink-500)]">
+                    ✓
+                  </span>
                 </span>
               )}
             </button>
@@ -484,12 +507,12 @@ function MemberZone({
       {/* Huddle label */}
       {huddleActive && (
         <div className="pointer-events-none mt-3 flex justify-center">
-          <div
-            className="t-hand rounded-full border-[2.5px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] px-4 py-1.5 text-sm shadow-[3px_3px_0_rgba(24,22,15,0.6)]"
-            style={{ filter: "url(#crayonWobbleLight)" }}
+          <CrayonFrame
+            visual="rounded-full border-[2.5px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[3px_3px_0_rgba(24,22,15,0.6)]"
+            contentClassName="t-hand px-4 py-1.5 text-sm"
           >
             {selected.size}명이서 나누기 ✦ 여기에 놓으세요
-          </div>
+          </CrayonFrame>
         </div>
       )}
     </div>
@@ -551,7 +574,6 @@ function ItemZone({
 function ItemCard({
   item,
   remaining,
-  pickable,
   onClick,
   onDragStart,
   onDragEnd,
@@ -573,8 +595,7 @@ function ItemCard({
       }}
       onDragEnd={onDragEnd}
       onClick={onClick}
-      className={`draggable relative flex h-full flex-col gap-1 rounded-2xl border-[2.5px] border-[var(--color-ink-400)] bg-[var(--color-paper-50)] px-3 py-3 shadow-[3px_4px_0_rgba(24,22,15,0.55)] transition-transform hover:-translate-y-0.5 ${pickable ? "" : ""}`}
-      style={{ filter: "url(#crayonWobbleLight)" }}
+      className="draggable relative h-full transition-transform hover:-translate-y-0.5"
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -584,23 +605,34 @@ function ItemCard({
         }
       }}
     >
-      <div className="flex items-start justify-between gap-1">
-        <span className="t-data line-clamp-2 text-[var(--color-ink-500)]">
-          {item.name}
-        </span>
-        {item.totalQty > 1 && (
-          <span
-            className="t-data inline-grid h-6 min-w-6 place-items-center rounded-full border-[2px] border-[var(--color-ink-500)] bg-[var(--color-paper-100)] px-1.5 text-xs text-[var(--color-ink-500)]"
-            style={{ filter: "url(#crayonWobbleLight)" }}
-          >
-            {remaining}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 rounded-2xl border-[2.5px] border-[var(--color-ink-400)] bg-[var(--color-paper-50)] shadow-[3px_4px_0_rgba(24,22,15,0.55)]"
+        style={{ filter: "url(#crayonWobbleLight)" }}
+      />
+      <div className="relative flex h-full flex-col gap-1 px-3 py-3">
+        <div className="flex items-start justify-between gap-1">
+          <span className="t-data line-clamp-2 text-[var(--color-ink-500)]">
+            {item.name}
           </span>
-        )}
-      </div>
-      <div className="mt-auto pt-2">
-        <span className="t-data text-base text-[var(--color-ink-400)]">
-          ₩{fmt(item.unitPrice)}
-        </span>
+          {item.totalQty > 1 && (
+            <span className="relative inline-grid h-6 min-w-6 place-items-center px-1.5">
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-0 rounded-full border-[2px] border-[var(--color-ink-500)] bg-[var(--color-paper-100)]"
+                style={{ filter: "url(#crayonWobbleLight)" }}
+              />
+              <span className="relative t-data text-xs text-[var(--color-ink-500)]">
+                {remaining}
+              </span>
+            </span>
+          )}
+        </div>
+        <div className="mt-auto pt-2">
+          <span className="t-data text-base text-[var(--color-ink-400)]">
+            ₩{fmt(item.unitPrice)}
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -618,9 +650,9 @@ function MemberPreview({
   total: number;
 }) {
   return (
-    <div
-      className="rounded-2xl border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] px-4 py-4 shadow-[4px_5px_0_rgba(24,22,15,0.6)]"
-      style={{ filter: "url(#crayonWobbleLight)" }}
+    <CrayonFrame
+      visual="rounded-2xl border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[4px_5px_0_rgba(24,22,15,0.6)]"
+      contentClassName="px-4 py-4"
     >
       <div className="mb-3 flex items-center justify-between">
         <span className="t-hand text-[var(--color-ink-500)]">
@@ -646,12 +678,7 @@ function MemberPreview({
                   </span>
                 )}
                 {it.splitNotes.length > 0 && (
-                  <span
-                    className="t-hand inline-block rounded-full border-[1.5px] border-[var(--color-ink-300)] px-2 text-xs text-[var(--color-ink-300)]"
-                    style={{ filter: "url(#crayonWobbleLight)" }}
-                  >
-                    {it.splitNotes[0]}
-                  </span>
+                  <SplitBadge>{it.splitNotes[0]}</SplitBadge>
                 )}
               </div>
               <span className="t-data text-[var(--color-ink-500)]">
@@ -661,6 +688,22 @@ function MemberPreview({
           ))}
         </ul>
       )}
-    </div>
+    </CrayonFrame>
+  );
+}
+
+/** A pill badge with wobbled outline and crisp label. */
+function SplitBadge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="relative inline-block">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 rounded-full border-[1.5px] border-[var(--color-ink-300)]"
+        style={{ filter: "url(#crayonWobbleLight)" }}
+      />
+      <span className="t-hand relative inline-block px-2 text-xs text-[var(--color-ink-300)]">
+        {children}
+      </span>
+    </span>
   );
 }

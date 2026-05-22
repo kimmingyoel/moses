@@ -93,14 +93,14 @@ body {
   filter: url(#crayonWobbleLight);
 }
 
-/* Paper sheet — the central card */
+/* Paper sheet — paper grain background.
+ * Layout (position/size) is controlled where the class is applied, not here. */
 .sheet {
   background-color: var(--color-paper-50);
   background-image:
     url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.15  0 0 0 0 0.12  0 0 0 0 0.08  0 0 0 0.07 0'/></filter><rect width='100%25' height='100%25' filter='url(%23p)'/></svg>"),
     radial-gradient(circle at 20% 8%, rgba(140, 110, 60, 0.06), transparent 50%),
     radial-gradient(circle at 80% 92%, rgba(140, 110, 60, 0.07), transparent 50%);
-  position: relative;
 }
 
 /* Sheet edges — rough hand-cut paper feel via clip-path */
@@ -155,8 +155,12 @@ body {
     );
 }
 
-/* Hand-drawn button base */
+/* Hand-drawn button — outline goes on ::before so the label stays crisp.
+ * isolation creates a stacking context so the z-index:-1 on ::before is
+ * scoped (it sits behind the button's text but doesn't fall behind the page). */
 .crayon-btn {
+  position: relative;
+  isolation: isolate;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -165,74 +169,111 @@ body {
   font-family: var(--font-hand);
   font-size: 1.05rem;
   color: var(--color-paper-50);
-  background: var(--color-ink-400);
-  border: 3px solid var(--color-ink-500);
+  background: transparent;
+  border: none;
   border-radius: 12px;
   cursor: pointer;
+  transition: transform 120ms ease;
+}
+
+.crayon-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--color-ink-400);
+  border: 3px solid var(--color-ink-500);
+  border-radius: inherit;
   box-shadow: 4px 5px 0 rgba(24, 22, 15, 0.7);
-  transition: transform 120ms ease, box-shadow 120ms ease;
   filter: url(#crayonWobble);
+  transition: box-shadow 120ms ease, background 120ms ease, border-color 120ms ease;
 }
 
 .crayon-btn:hover:not(:disabled) {
   transform: translate(-1px, -2px);
+}
+.crayon-btn:hover:not(:disabled)::before {
   box-shadow: 6px 7px 0 rgba(24, 22, 15, 0.7);
 }
 
 .crayon-btn:active:not(:disabled) {
   transform: translate(2px, 3px);
+}
+.crayon-btn:active:not(:disabled)::before {
   box-shadow: 2px 2px 0 rgba(24, 22, 15, 0.6);
 }
 
 .crayon-btn:disabled {
-  background: var(--color-ink-100);
   color: var(--color-ink-200);
+  cursor: not-allowed;
+}
+.crayon-btn:disabled::before {
+  background: var(--color-ink-100);
   border-color: var(--color-ink-200);
   box-shadow: none;
-  cursor: not-allowed;
 }
 
 .crayon-btn--ghost {
-  background: transparent;
   color: var(--color-ink-400);
+}
+.crayon-btn--ghost::before {
+  background: transparent;
   border-color: var(--color-ink-400);
   box-shadow: 3px 4px 0 rgba(24, 22, 15, 0.4);
 }
-
-.crayon-btn--ghost:hover:not(:disabled) {
+.crayon-btn--ghost:hover:not(:disabled)::before {
   background: rgba(24, 22, 15, 0.04);
 }
 
 .crayon-btn--small {
   padding: 0.4rem 0.85rem;
   font-size: 0.95rem;
+}
+.crayon-btn--small::before {
   border-width: 2.5px;
   box-shadow: 3px 4px 0 rgba(24, 22, 15, 0.6);
 }
 
-/* Hand-drawn text input */
+/* Hand-drawn text input — wrap input in .crayon-field; the wrapper draws the
+ * wobbled frame on ::before so input text stays crisp. */
+/* Wrap an <input> in .crayon-field so the wobbled frame stays on ::before
+ * and the typed text remains crisp on top. */
+.crayon-field {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  border-radius: 10px;
+}
+.crayon-field::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: rgba(255, 252, 244, 0.7);
+  border: 2.5px solid var(--color-ink-400);
+  border-radius: inherit;
+  filter: url(#crayonWobbleLight);
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+.crayon-field:focus-within::before {
+  background: rgba(255, 252, 244, 0.95);
+  box-shadow: 2px 3px 0 rgba(24, 22, 15, 0.5);
+}
+
 .crayon-input {
   width: 100%;
   padding: 0.65rem 0.9rem;
   font-family: var(--font-hand);
   font-size: 1.05rem;
   color: var(--color-ink-500);
-  background: rgba(255, 252, 244, 0.7);
-  border: 2.5px solid var(--color-ink-400);
-  border-radius: 10px;
+  background: transparent;
+  border: none;
   outline: none;
-  filter: url(#crayonWobbleLight);
-  box-shadow: inset 0 0 0 1px rgba(24, 22, 15, 0.05);
 }
 
 .crayon-input::placeholder {
   color: var(--color-ink-200);
   font-family: var(--font-hand);
-}
-
-.crayon-input:focus {
-  background: rgba(255, 252, 244, 0.95);
-  box-shadow: inset 0 0 0 1px rgba(24, 22, 15, 0.2), 2px 3px 0 rgba(24, 22, 15, 0.5);
 }
 
 /* Crayon-textured underline for inline-edit cells */
