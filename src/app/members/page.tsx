@@ -126,7 +126,6 @@ export default function MembersPage() {
       <OcrBanner
         done={ocrDone}
         canProceed={canProceed}
-        onBack={() => router.back()}
         onNext={() => router.push("/review")}
       />
     </div>
@@ -173,12 +172,10 @@ function EmptyMembers() {
 function OcrBanner({
   done,
   canProceed,
-  onBack,
   onNext,
 }: {
   done: boolean;
   canProceed: boolean;
-  onBack: () => void;
   onNext: () => void;
 }) {
   const visual = done
@@ -193,14 +190,6 @@ function OcrBanner({
           className="pointer-events-auto transition-all duration-300"
           contentClassName="flex items-center gap-3 px-4 py-3 sm:px-5 sm:py-4"
         >
-          <button
-            type="button"
-            onClick={onBack}
-            className="banner-back-btn shrink-0"
-          >
-            ← 이전
-          </button>
-
           {/* Icon */}
           <div className="hidden shrink-0 sm:block">
             {done ? (
