@@ -2,20 +2,23 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sheet } from "@/components/Sheet";
-import { CrayonFrame } from "@/components/CrayonFrame";
 import {
-  DoodleAvatar,
-  DoodleRibbon,
-  DoodleCheck,
-  DoodleSparkle,
-} from "@/components/Doodles";
+  Sheet,
+  SketchFrame,
+  SketchRectVisual,
+  SketchButton,
+  Avatar,
+  IconCheck,
+  IconSparkle,
+  IconChevron,
+  IconArrowLeft,
+} from "@/components/sketch";
 
 type ResultItem = {
   name: string;
   units: number;
   amount: number;
-  splitWith?: number; // if shared, the split count
+  splitWith?: number;
 };
 
 type Result = {
@@ -25,7 +28,6 @@ type Result = {
   items: ResultItem[];
 };
 
-// Mock data — matches the distribute-all outcome from Screen 4
 const results: Result[] = [
   {
     id: 1,
@@ -94,7 +96,7 @@ export default function ResultPage() {
     try {
       await navigator.clipboard.writeText(lines.join("\n"));
     } catch {
-      // best-effort fallback omitted — UI demo
+      /* ignore — UI demo */
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
@@ -103,85 +105,87 @@ export default function ResultPage() {
   return (
     <div className="pb-10">
       <Sheet>
-        {/* Ribbon header */}
-        <div className="-mt-2 mb-2 flex justify-center">
-          <DoodleRibbon className="w-[260px]" tone="dark">
-            <text
-              x="140"
-              y="42"
-              textAnchor="middle"
-              fontFamily="OnGeurip-Nuka, sans-serif"
-              fontSize="24"
-              fill="#111111"
-            >
+        {/* Ribbon-ish title */}
+        <div className="mb-6 flex justify-center">
+          <div className="relative inline-block">
+            <SketchRectVisual
+              radius={999}
+              fill="#262626"
+              stroke="ink"
+              shadow="drop"
+              wobble={0.55}
+              strokeWidth={2.4}
+            />
+            <span className="relative inline-block px-6 py-2 font-hand text-2xl text-white">
               정산 결과
-            </text>
-          </DoodleRibbon>
+            </span>
+          </div>
         </div>
 
-        {/* Grand total */}
         <div className="mb-7 text-center">
-          <p className="t-hand text-base text-[var(--color-ink-300)]">총 정산 금액</p>
-          <p className="t-data money-text mt-1 text-4xl font-bold text-[var(--color-ink-500)]">
+          <p className="font-hand text-base text-[var(--color-ink-soft)]">
+            총 정산 금액
+          </p>
+          <p className="font-data money-text mt-1 text-4xl font-bold text-[var(--color-ink-deep)]">
             ₩{fmt(grandTotal)}
           </p>
         </div>
 
-        {/* Member cards */}
         <ul className="space-y-3">
           {results.map((r) => {
             const isOpen = expanded.has(r.id);
             return (
               <li key={r.id}>
-                <CrayonFrame
-                  visual="rounded-2xl border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)]"
-                  className="overflow-hidden"
-                >
+                <SketchFrame radius={20} shadow="soft">
                   <button
                     type="button"
                     onClick={() => toggle(r.id)}
-                    className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[var(--color-paper-100)]/40"
+                    className="flex w-full items-center gap-3 px-4 py-3.5 text-left"
                   >
-                    <DoodleAvatar name={r.name} size={48} />
+                    <Avatar name={r.name} size={44} />
                     <div className="min-w-0 flex-1">
-                      <p className="t-hand text-xl leading-tight text-[var(--color-ink-500)]">
+                      <p className="font-hand text-xl leading-tight text-[var(--color-ink-deep)]">
                         {r.name}
                       </p>
-                      <p className="t-hand text-base text-[var(--color-ink-300)]">
+                      <p className="font-hand text-base text-[var(--color-ink-soft)]">
                         항목 {r.items.length}개
                       </p>
                     </div>
-                    <span className="t-data money-text text-2xl font-bold text-[var(--color-ink-500)]">
+                    <span className="font-data money-text text-2xl font-bold text-[var(--color-ink-deep)]">
                       ₩{fmt(r.total)}
                     </span>
                     <span
-                      className={`grid h-7 w-7 shrink-0 place-items-center text-lg text-[var(--color-ink-400)] transition-transform ${isOpen ? "rotate-180" : ""}`}
+                      className={`grid h-7 w-7 shrink-0 place-items-center text-[var(--color-ink-soft)] transition-transform duration-200 ${
+                        isOpen ? "rotate-180" : ""
+                      }`}
                       aria-hidden
                     >
-                      ▾
+                      <IconChevron className="h-4 w-4" />
                     </span>
                   </button>
 
-                  {/* Expanded detail */}
                   <div
-                    className={`result-detail ${
-                      isOpen ? "result-detail--open" : ""
+                    className={`detail-collapse ${
+                      isOpen ? "detail-collapse--open" : ""
                     }`}
                     aria-hidden={!isOpen}
                   >
-                    <div className="border-t-[2px] border-dashed border-[var(--color-ink-200)] px-4 py-3">
-                      <ul className="divide-y divide-dashed divide-[var(--color-ink-200)]/60">
+                    <div className="px-4 pb-3">
+                      {/* Divider sits inside the padding so it never reaches
+                          the outer hand-drawn stroke. */}
+                      <div className="mb-3 border-t-2 border-dashed border-[var(--color-ink-line)]" />
+                      <ul className="divide-y divide-dashed divide-[var(--color-ink-line)]">
                         {r.items.map((it, idx) => (
                           <li
                             key={idx}
                             className="flex items-center justify-between gap-3 py-2"
                           >
                             <div className="flex min-w-0 items-center gap-2">
-                              <span className="t-data truncate text-lg text-[var(--color-ink-500)]">
+                              <span className="font-data truncate text-lg text-[var(--color-ink-deep)]">
                                 {it.name}
                               </span>
                               {it.units > 1 && (
-                                <span className="t-data text-base text-[var(--color-ink-300)]">
+                                <span className="font-data text-base text-[var(--color-ink-soft)]">
                                   × {it.units}
                                 </span>
                               )}
@@ -189,7 +193,7 @@ export default function ResultPage() {
                                 <SplitBadge>{it.splitWith}명 나눔</SplitBadge>
                               )}
                             </div>
-                            <span className="t-data money-text shrink-0 text-lg text-[var(--color-ink-500)]">
+                            <span className="font-data money-text shrink-0 text-lg text-[var(--color-ink-deep)]">
                               ₩{fmt(it.amount)}
                             </span>
                           </li>
@@ -197,42 +201,30 @@ export default function ResultPage() {
                       </ul>
                     </div>
                   </div>
-                </CrayonFrame>
+                </SketchFrame>
               </li>
             );
           })}
         </ul>
 
-        {/* Action buttons */}
         <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-center">
-          <button
-            type="button"
-            onClick={copyToClipboard}
-            className="crayon-btn"
-          >
+          <SketchButton onClick={copyToClipboard}>
             {copied ? (
               <>
-                <DoodleCheck className="h-5 w-5" tone="ink" />
-                복사 완료!
+                <IconCheck className="h-5 w-5" /> 복사 완료!
               </>
             ) : (
               <>
-                <DoodleSparkle className="h-4 w-4" tone="ink" />
-                클립보드에 복사
+                <IconSparkle className="h-4 w-4" /> 클립보드에 복사
               </>
             )}
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push("/")}
-            className="crayon-btn crayon-btn--ghost"
-          >
-            ← 처음으로
-          </button>
+          </SketchButton>
+          <SketchButton variant="ghost" onClick={() => router.push("/")}>
+            <IconArrowLeft className="h-4 w-4" /> 처음으로
+          </SketchButton>
         </div>
 
-        {/* Footnote */}
-        <p className="t-hand mt-6 text-center text-base text-[var(--color-ink-200)]">
+        <p className="font-hand mt-6 text-center text-base text-[var(--color-ink-mute)]">
           총무가 대표 결제하고, 위 금액을 받아주세요 ☕
         </p>
       </Sheet>
@@ -240,16 +232,17 @@ export default function ResultPage() {
   );
 }
 
-/** A pill badge with wobbled outline and crisp label. */
 function SplitBadge({ children }: { children: React.ReactNode }) {
   return (
     <span className="relative inline-block">
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-full border-[1.5px] border-[var(--color-ink-300)]"
-        style={{ filter: "url(#crayonWobbleLight)" }}
+      <SketchRectVisual
+        radius={999}
+        fill="#fafafa"
+        stroke="soft"
+        wobble={0.4}
+        strokeWidth={1.6}
       />
-      <span className="t-hand relative inline-block px-2 text-base text-[var(--color-ink-300)]">
+      <span className="font-hand relative inline-block px-2 text-[0.85rem] text-[var(--color-ink-soft)]">
         {children}
       </span>
     </span>

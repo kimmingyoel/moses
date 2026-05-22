@@ -2,21 +2,24 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sheet } from "@/components/Sheet";
-import { CrayonFrame } from "@/components/CrayonFrame";
 import {
-  DoodleAvatar,
-  DoodleUndo,
-  DoodleRedo,
-  DoodleSparkle,
-} from "@/components/Doodles";
+  Sheet,
+  SketchFrame,
+  SketchRectVisual,
+  SketchButton,
+  StepIndicator,
+  Avatar,
+  IconUndo,
+  IconRedo,
+  IconArrowLeft,
+  IconSparkle,
+  IconCheck,
+} from "@/components/sketch";
 
 /* ──────────────── Types & seed data ──────────────── */
 
 type Member = { id: number; name: string };
 type Item = { id: number; name: string; unitPrice: number; totalQty: number };
-
-/** One assignment record = one unit of an item split among the listed member ids. */
 type Assignment = { id: number; itemId: number; memberIds: number[] };
 
 const seedMembers: Member[] = [
@@ -51,7 +54,6 @@ export default function AssignPage() {
   const [draggingItemId, setDraggingItemId] = useState<number | null>(null);
   const [dropTargetMemberId, setDropTargetMemberId] = useState<number | null>(null);
 
-  // Counter bump effect — track which member totals just changed
   const [bumpedMemberIds, setBumpedMemberIds] = useState<Set<number>>(new Set());
   const bumpTimerRef = useRef<number | undefined>(undefined);
   const hoverOpenTimerRef = useRef<number | undefined>(undefined);
@@ -79,7 +81,6 @@ export default function AssignPage() {
     };
   }, [clearPreviewTimers]);
 
-  /* Derived */
   const remainingQty = useCallback(
     (itemId: number) => {
       const used = assignments.filter((a) => a.itemId === itemId).length;
@@ -109,8 +110,6 @@ export default function AssignPage() {
   );
 
   const allAssigned = visibleItems.length === 0;
-
-  /* Actions */
 
   const pushHistory = (prev: Assignment[]) => {
     setHistory((h) => [prev, ...h].slice(0, 50));
@@ -183,12 +182,11 @@ export default function AssignPage() {
       if (draggingItemId !== null || Date.now() < suppressPreviewUntilRef.current) {
         return;
       }
-
       if (hoverCloseTimerRef.current) clearTimeout(hoverCloseTimerRef.current);
       if (hoverOpenTimerRef.current) clearTimeout(hoverOpenTimerRef.current);
       hoverOpenTimerRef.current = window.setTimeout(
         () => setPreviewMemberId(id),
-        previewMemberId === null ? 220 : 120
+        previewMemberId === null ? 80 : 30
       );
     },
     [draggingItemId, previewMemberId]
@@ -200,17 +198,15 @@ export default function AssignPage() {
     if (hoverCloseTimerRef.current) clearTimeout(hoverCloseTimerRef.current);
     hoverCloseTimerRef.current = window.setTimeout(
       () => setPreviewMemberId(null),
-      280
+      120
     );
   }, []);
 
-  /* Item-click flow (tap-to-assign as fallback) */
   const handleItemClick = (itemId: number) => {
-    if (selected.size === 0) return; // do nothing — show hint elsewhere
+    if (selected.size === 0) return;
     performAssign(itemId, Array.from(selected));
   };
 
-  /* Drag flow */
   const findMemberAtPoint = useCallback((x: number, y: number) => {
     const node = document.elementFromPoint(x, y);
     const memberNode = node?.closest<HTMLElement>("[data-member-id]");
@@ -223,9 +219,11 @@ export default function AssignPage() {
     setPreviewMemberId(null);
     setDraggingItemId(itemId);
   };
+
   const handleDragMove = (x: number, y: number) => {
     setDropTargetMemberId(findMemberAtPoint(x, y));
   };
+
   const handleDropAtPoint = (itemId: number, x: number, y: number) => {
     const memberId = findMemberAtPoint(x, y);
     if (memberId !== null) {
@@ -239,25 +237,12 @@ export default function AssignPage() {
     setDraggingItemId(null);
     setDropTargetMemberId(null);
   };
+
   const handleDragEnd = () => {
     setDraggingItemId(null);
     setDropTargetMemberId(null);
   };
-  const handleDropOnMember = (itemId: number, memberId: number) => {
-    // If multi-select, route to selected group; else single member
-    if (selected.size > 1) {
-      performAssign(itemId, Array.from(selected));
-    } else {
-      performAssign(itemId, [memberId]);
-    }
-    suppressPreviewBriefly();
-  };
-  const handleDropOnHuddle = (itemId: number) => {
-    performAssign(itemId, Array.from(selected));
-    suppressPreviewBriefly();
-  };
 
-  /* Member items preview (for hover) */
   const memberItemsBreakdown = useCallback(
     (memberId: number) => {
       const map = new Map<
@@ -297,42 +282,32 @@ export default function AssignPage() {
   return (
     <div className="pb-32">
       <Sheet>
-        {/* Step + header */}
-        <div className="mb-3 flex items-center gap-2">
-          <span className="t-data text-base text-[var(--color-ink-200)]">
-            STEP 4 / 5
-          </span>
-          <span className="block h-[1px] flex-1 bg-[var(--color-ink-200)]/40" />
-          {/* Undo / Redo */}
-          <div className="grid grid-cols-[36px_36px] gap-1">
-            <span className="grid h-9 w-9 place-items-center">
-              {history.length > 0 && (
-                <IconButton onClick={undo} aria-label="되돌리기">
-                  <DoodleUndo className="h-5 w-5" tone="dark" />
-                </IconButton>
-              )}
-            </span>
-            <span className="grid h-9 w-9 place-items-center">
-              {redoStack.length > 0 && (
-                <IconButton onClick={redo} aria-label="다시 하기">
-                  <DoodleRedo className="h-5 w-5" tone="dark" />
-                </IconButton>
-              )}
-            </span>
+        <div className="flex items-center justify-between gap-2">
+          <StepIndicator current={4} className="flex-1" />
+          <div className="flex items-center gap-1.5">
+            {history.length > 0 && (
+              <IconButton onClick={undo} aria-label="되돌리기">
+                <IconUndo className="h-5 w-5" />
+              </IconButton>
+            )}
+            {redoStack.length > 0 && (
+              <IconButton onClick={redo} aria-label="다시 하기">
+                <IconRedo className="h-5 w-5" />
+              </IconButton>
+            )}
           </div>
         </div>
 
-        <div className="mb-5">
-          <h1 className="t-hand text-[2.1rem] leading-tight text-[var(--color-ink-500)] sm:text-[2.4rem]">
+        <div className="mt-5 mb-6">
+          <h1 className="font-hand text-[2.1rem] leading-tight text-[var(--color-ink-deep)] sm:text-[2.4rem]">
             누가 뭘 먹었지?
           </h1>
-          <p className="t-hand mt-2 text-lg text-[var(--color-ink-300)]">
+          <p className="font-hand mt-2 text-lg text-[var(--color-ink-soft)]">
             사람을 누른 뒤 항목을 끌어다 놓아 보세요.
             <br className="hidden sm:block" /> 여럿을 함께 고르면 나눠 낼 수도 있어요.
           </p>
         </div>
 
-        {/* ─── Member zone ─── */}
         <MemberZone
           members={members}
           selected={selected}
@@ -347,29 +322,36 @@ export default function AssignPage() {
           onUnhover={handleMemberLeave}
           onDragOverMember={(id) => setDropTargetMemberId(id)}
           onDragLeaveMember={() => setDropTargetMemberId(null)}
-          onDropOnMember={handleDropOnMember}
-          onDropOnHuddle={handleDropOnHuddle}
+          onDropOnMember={(itemId, memberId) => {
+            if (selected.size > 1) performAssign(itemId, Array.from(selected));
+            else performAssign(itemId, [memberId]);
+            suppressPreviewBriefly();
+          }}
+          onDropOnHuddle={(itemId) => {
+            performAssign(itemId, Array.from(selected));
+            suppressPreviewBriefly();
+          }}
         />
 
-        {/* Selection hint */}
         {selected.size > 0 && (
-          <CrayonFrame
-            visual="rounded-full border-[2px] border-[var(--color-ink-400)] bg-[var(--color-paper-50)]"
+          <SketchFrame
+            radius={999}
+            shadow="none"
+            stroke="ink"
             className="mt-3 inline-block"
-            contentClassName="t-hand inline-flex items-center gap-2 px-3 py-1 text-base text-[var(--color-ink-400)]"
+            contentClassName="font-hand inline-flex items-center gap-2 px-3 py-1 text-base text-[var(--color-ink)]"
           >
-            <span className="t-data">{selected.size}</span>명이 함께 부담해요
+            <span className="font-data">{selected.size}</span>명이 함께 부담해요
             <button
               type="button"
               onClick={() => setSelected(new Set())}
-              className="t-hand text-base text-[var(--color-ink-300)] hover:text-[var(--color-ink-500)]"
+              className="font-hand text-base text-[var(--color-ink-soft)] hover:text-[var(--color-ink-deep)]"
             >
               취소
             </button>
-          </CrayonFrame>
+          </SketchFrame>
         )}
 
-        {/* ─── Item zone OR preview ─── */}
         <div className="mt-7">
           {previewMember ? (
             <MemberPreview
@@ -391,66 +373,62 @@ export default function AssignPage() {
           )}
         </div>
 
-        {/* 전체 균등 배분 */}
         {!allAssigned && visibleItems.length > 0 && (
           <div className="mt-6 flex justify-center">
-            <button
-              type="button"
-              onClick={distributeAll}
-              className="crayon-btn crayon-btn--ghost"
-            >
-              ✦ 전체 균등 배분
-            </button>
+            <SketchButton variant="ghost" onClick={distributeAll}>
+              <IconSparkle className="h-4 w-4" /> 전체 균등 배분
+            </SketchButton>
           </div>
         )}
 
-        {/* All done */}
         {allAssigned && (
-          <CrayonFrame
-            visual="rounded-2xl border-[3px] border-dashed border-[var(--color-ink-400)] bg-[var(--color-paper-100)]"
+          <SketchFrame
+            radius={20}
+            fill="#fafafa"
+            dashed
+            stroke="ink"
             className="mt-6"
             contentClassName="flex items-center justify-center gap-2 px-4 py-5 text-center"
           >
-            <DoodleSparkle className="h-5 w-5" tone="ink" aria-hidden />
-            <p className="t-hand text-lg text-[var(--color-ink-500)]">
+            <IconSparkle className="h-5 w-5 text-[var(--color-ink)]" />
+            <p className="font-hand text-lg text-[var(--color-ink-deep)]">
               모든 항목 배분 완료!
             </p>
-            <DoodleSparkle className="h-5 w-5" tone="ink" aria-hidden />
-          </CrayonFrame>
+            <IconSparkle className="h-5 w-5 text-[var(--color-ink)]" />
+          </SketchFrame>
         )}
       </Sheet>
 
       {/* Bottom action bar */}
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30">
-        <div className="mx-auto w-full max-w-[720px] px-4 pb-4 sm:pb-6">
-          <CrayonFrame
-            visual="rounded-2xl border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[5px_6px_0_rgba(24,22,15,0.7)]"
+        <div className="mx-auto w-full max-w-[760px] px-4 pb-4 sm:pb-6">
+          <SketchFrame
+            radius={20}
+            shadow="drop"
             className="pointer-events-auto"
             contentClassName="flex items-center justify-between gap-3 px-4 py-3 sm:px-5"
           >
             <button
               type="button"
               onClick={() => router.back()}
-              className="banner-back-btn"
+              className="inline-flex items-center gap-1.5 font-hand text-lg text-[var(--color-ink-soft)] transition-colors hover:text-[var(--color-ink-deep)]"
             >
-              ← 이전
+              <IconArrowLeft className="h-4 w-4" />
+              이전
             </button>
-            <button
-              type="button"
-              disabled={!allAssigned}
+            <SketchButton
               onClick={() => router.push("/result")}
-              className="crayon-btn"
+              disabled={!allAssigned}
             >
               정산 완료
-            </button>
-          </CrayonFrame>
+            </SketchButton>
+          </SketchFrame>
         </div>
       </div>
     </div>
   );
 }
 
-/* IconButton — square button with wobbled outline, crisp icon */
 function IconButton({
   children,
   ...rest
@@ -458,13 +436,16 @@ function IconButton({
   return (
     <button
       type="button"
-      className="relative grid h-9 w-9 place-items-center transition-transform hover:translate-y-[-1px]"
+      className="relative grid h-9 w-9 place-items-center text-[var(--color-ink)] transition-transform hover:-translate-y-[1px]"
       {...rest}
     >
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-lg border-[2px] border-[var(--color-ink-400)] bg-[var(--color-paper-50)] shadow-[2px_2px_0_rgba(24,22,15,0.6)]"
-        style={{ filter: "url(#crayonWobbleLight)" }}
+      <SketchRectVisual
+        radius={10}
+        fill="#ffffff"
+        stroke="ink"
+        shadow="soft"
+        wobble={0.45}
+        strokeWidth={2.2}
       />
       <span className="relative">{children}</span>
     </button>
@@ -509,25 +490,21 @@ function MemberZone({
   return (
     <div className="relative">
       <div
-        className={`flex flex-wrap gap-3 transition-all duration-300 ${huddleActive ? "justify-center" : ""}`}
+        className={`flex flex-wrap gap-3 transition-all duration-300 ${
+          huddleActive ? "justify-center" : ""
+        }`}
       >
         {members.map((m) => {
           const isSelected = selected.has(m.id);
           const isDropTarget = dropTargetMemberId === m.id;
           const isHovered = hoveredMemberId === m.id;
           const isBumped = bumpedMemberIds.has(m.id);
-          // In huddle mode, push selected cards together visually (overlap)
           const huddleStyle = huddleActive && isSelected
             ? { transform: "translateX(0) scale(1.04)" }
             : huddleActive && !isSelected
               ? { opacity: 0.35 }
               : undefined;
-          const visualClass =
-            isSelected || isDropTarget
-              ? "border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[4px_5px_0_rgba(24,22,15,0.7)]"
-              : isHovered
-                ? "border-[var(--color-ink-400)] bg-[var(--color-paper-50)] shadow-[3px_4px_0_rgba(24,22,15,0.55)]"
-                : "border-[var(--color-ink-300)] bg-[var(--color-paper-100)] shadow-[2px_3px_0_rgba(24,22,15,0.35)]";
+          const showShadow = isSelected || isDropTarget ? "drop" : isHovered ? "soft" : "soft";
           return (
             <button
               key={m.id}
@@ -553,37 +530,43 @@ function MemberZone({
                 }
                 onDragLeaveMember();
               }}
-              className={`group relative w-[110px] transition-all duration-200 sm:w-[124px] ${
+              className={`group relative w-[112px] transition-all duration-200 sm:w-[128px] ${
                 isSelected || isDropTarget ? "-translate-y-1" : ""
               }`}
               style={huddleStyle}
             >
-              <span
-                aria-hidden
-                className={`pointer-events-none absolute inset-0 rounded-2xl border-[2.5px] ${visualClass}`}
-                style={{ filter: "url(#crayonWobbleLight)" }}
+              <SketchRectVisual
+                radius={18}
+                fill={isSelected || isDropTarget ? "#ffffff" : "#fafafa"}
+                stroke={isSelected || isDropTarget ? "ink" : "soft"}
+                shadow={showShadow}
+                wobble={0.55}
+                strokeWidth={isSelected || isDropTarget ? 2.6 : 2.2}
+                seed={m.id * 7}
               />
               <span className="relative flex flex-col items-center gap-1.5 px-3 py-3">
-                <DoodleAvatar name={m.name} size={52} />
-                <span className="t-hand text-lg text-[var(--color-ink-500)]">
+                <Avatar name={m.name} size={48} />
+                <span className="font-hand text-lg text-[var(--color-ink-deep)]">
                   {m.name}
                 </span>
                 <span
-                  className={`t-data money-text text-lg text-[var(--color-ink-500)] ${isBumped ? "animate-count-bump" : ""}`}
+                  className={`font-data money-text text-base text-[var(--color-ink-deep)] ${
+                    isBumped ? "animate-count-bump" : ""
+                  }`}
                 >
                   <RollingCurrency value={memberTotal(m.id)} active={isBumped} />
                 </span>
               </span>
               {isSelected && (
                 <span className="absolute -top-2 -right-2 grid h-6 w-6 place-items-center">
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 rounded-full border-[2px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[2px_2px_0_rgba(24,22,15,0.5)]"
-                    style={{ filter: "url(#crayonWobbleLight)" }}
+                  <SketchRectVisual
+                    radius={999}
+                    fill="#262626"
+                    stroke="ink"
+                    shadow="soft"
+                    wobble={0.4}
                   />
-                  <span className="relative t-data text-xs text-[var(--color-ink-500)]">
-                    ✓
-                  </span>
+                  <IconCheck className="relative h-3.5 w-3.5 text-white" />
                 </span>
               )}
             </button>
@@ -591,15 +574,16 @@ function MemberZone({
         })}
       </div>
 
-      {/* Huddle label */}
       {huddleActive && (
         <div className="pointer-events-none mt-3 flex justify-center">
-          <CrayonFrame
-            visual="rounded-full border-[2.5px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[3px_3px_0_rgba(24,22,15,0.6)]"
-            contentClassName="t-hand px-4 py-1.5 text-base"
+          <SketchFrame
+            radius={999}
+            shadow="soft"
+            stroke="ink"
+            contentClassName="font-hand px-4 py-1.5 text-base text-[var(--color-ink)]"
           >
             {selected.size}명이서 나누기 ✦ 여기에 놓으세요
-          </CrayonFrame>
+          </SketchFrame>
         </div>
       )}
     </div>
@@ -631,12 +615,12 @@ function ItemZone({
   return (
     <>
       <div className="mb-3 flex items-center gap-2">
-        <span className="t-hand text-base text-[var(--color-ink-300)]">
+        <span className="font-hand text-base text-[var(--color-ink-soft)]">
           남은 항목 · {items.length}개
         </span>
-        <span className="h-[1px] flex-1 bg-[var(--color-ink-200)]/40" />
+        <span className="h-[1px] flex-1 bg-[var(--color-ink-line)]" />
         {selectedCount === 0 && (
-          <span className="t-hand text-base text-[var(--color-ink-200)]">
+          <span className="font-hand text-base text-[var(--color-ink-mute)]">
             먼저 사람을 골라 주세요
           </span>
         )}
@@ -703,23 +687,25 @@ function ItemCard({
     height: number;
   } | null>(null);
 
-  const finishDrag = useCallback((x: number, y: number, shouldDrop: boolean) => {
-    const drag = dragRef.current;
-    if (!drag) return;
-    if (drag.active && shouldDrop) {
-      onDropAtPoint(x, y);
-    }
-    if (drag.active) {
-      onDragEnd();
-    }
-    dragRef.current = null;
-    lastPointRef.current = null;
-    setDragVisual(null);
-  }, [onDragEnd, onDropAtPoint]);
+  const finishDrag = useCallback(
+    (x: number, y: number, shouldDrop: boolean) => {
+      const drag = dragRef.current;
+      if (!drag) return;
+      if (drag.active && shouldDrop) {
+        onDropAtPoint(x, y);
+      }
+      if (drag.active) {
+        onDragEnd();
+      }
+      dragRef.current = null;
+      lastPointRef.current = null;
+      setDragVisual(null);
+    },
+    [onDragEnd, onDropAtPoint]
+  );
 
   useEffect(() => {
     if (!dragVisual) return;
-
     const handleRelease = (event: PointerEvent | MouseEvent) => {
       finishDrag(event.clientX, event.clientY, true);
     };
@@ -727,12 +713,10 @@ function ItemCard({
       const point = lastPointRef.current;
       finishDrag(point?.x ?? 0, point?.y ?? 0, false);
     };
-
     window.addEventListener("pointerup", handleRelease, true);
     window.addEventListener("mouseup", handleRelease, true);
     window.addEventListener("pointercancel", handleCancel, true);
     window.addEventListener("blur", handleCancel, true);
-
     return () => {
       window.removeEventListener("pointerup", handleRelease, true);
       window.removeEventListener("mouseup", handleRelease, true);
@@ -769,12 +753,10 @@ function ItemCard({
         if (!drag || drag.pointerId !== e.pointerId) return;
         const dx = e.clientX - drag.startX;
         const dy = e.clientY - drag.startY;
-
         if (!drag.active && Math.hypot(dx, dy) > 5) {
           drag.active = true;
           onDragStart();
         }
-
         if (!drag.active) return;
         e.preventDefault();
         lastPointRef.current = { x: e.clientX, y: e.clientY };
@@ -813,7 +795,9 @@ function ItemCard({
       }}
     >
       <div
-        className={`draggable relative h-full transition-transform ${dragVisual ? "cursor-grabbing" : "hover:-translate-y-0.5"}`}
+        className={`draggable relative h-full transition-transform ${
+          dragVisual ? "cursor-grabbing" : "hover:-translate-y-0.5"
+        }`}
         style={
           dragVisual
             ? {
@@ -829,35 +813,40 @@ function ItemCard({
             : undefined
         }
       >
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-2xl border-[2.5px] border-[var(--color-ink-400)] bg-[var(--color-paper-50)] shadow-[3px_4px_0_rgba(24,22,15,0.55)]"
-        style={{ filter: "url(#crayonWobbleLight)" }}
-      />
-      <div className="relative flex h-full flex-col gap-1 px-3 py-3">
-        <div className="flex items-start justify-between gap-1">
-          <span className="t-data line-clamp-2 text-lg text-[var(--color-ink-500)]">
-            {item.name}
-          </span>
-          {item.totalQty > 1 && (
-            <span className="relative inline-grid h-6 min-w-6 place-items-center px-1.5">
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-0 rounded-full border-[2px] border-[var(--color-ink-500)] bg-[var(--color-paper-100)]"
-                style={{ filter: "url(#crayonWobbleLight)" }}
-              />
-              <span className="relative t-data text-sm text-[var(--color-ink-500)]">
-                {remaining}
-              </span>
+        <SketchRectVisual
+          radius={18}
+          fill="#ffffff"
+          stroke="ink"
+          shadow="soft"
+          wobble={0.5}
+          seed={item.id * 13}
+        />
+        <div className="relative flex h-full flex-col gap-1 px-4 py-3.5">
+          <div className="flex items-start justify-between gap-2">
+            <span className="font-data line-clamp-2 text-base text-[var(--color-ink-deep)]">
+              {item.name}
             </span>
-          )}
+            {item.totalQty > 1 && (
+              <span className="relative inline-grid h-6 min-w-6 place-items-center px-1.5">
+                <SketchRectVisual
+                  radius={999}
+                  fill="#fafafa"
+                  stroke="ink"
+                  wobble={0.4}
+                  strokeWidth={2}
+                />
+                <span className="relative font-data text-sm text-[var(--color-ink-deep)]">
+                  {remaining}
+                </span>
+              </span>
+            )}
+          </div>
+          <div className="mt-auto pt-2">
+            <span className="font-data money-text text-lg text-[var(--color-ink-soft)]">
+              ₩{fmt(item.unitPrice)}
+            </span>
+          </div>
         </div>
-        <div className="mt-auto pt-2">
-          <span className="t-data money-text text-lg text-[var(--color-ink-400)]">
-            ₩{fmt(item.unitPrice)}
-          </span>
-        </div>
-      </div>
       </div>
     </div>
   );
@@ -881,16 +870,13 @@ function RollingCurrency({
       setDisplayValue(value);
       return;
     }
-
     previousValueRef.current = value;
     setDiffFrom(fmt(from));
     if (frameRef.current) cancelAnimationFrame(frameRef.current);
-
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setDisplayValue(value);
       return;
     }
-
     const startedAt = performance.now();
     const duration = 540;
     const tick = (now: number) => {
@@ -903,7 +889,6 @@ function RollingCurrency({
         setDisplayValue(value);
       }
     };
-
     frameRef.current = requestAnimationFrame(tick);
     return () => {
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
@@ -930,18 +915,14 @@ function RollingCurrency({
         if (char === " ") return null;
         const isDigit = /\d/.test(char);
         const changed =
-          active &&
-          isDigit &&
-          previousChars[index] !== targetChars[index];
+          active && isDigit && previousChars[index] !== targetChars[index];
         return (
           <span
             key={`${index}-${targetChars[index]}`}
             aria-hidden
             className={`rolling-amount__char ${
               isDigit ? "rolling-amount__digit" : "rolling-amount__separator"
-            } ${
-              changed ? "rolling-amount__digit--changed" : ""
-            }`}
+            } ${changed ? "rolling-amount__digit--changed" : ""}`}
             style={changed ? { animationDelay: `${index * 18}ms` } : undefined}
           >
             {char}
@@ -964,30 +945,34 @@ function MemberPreview({
   total: number;
 }) {
   return (
-    <CrayonFrame
-      visual="rounded-2xl border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[4px_5px_0_rgba(24,22,15,0.6)]"
+    <SketchFrame
+      radius={20}
+      fill="#ffffff"
+      shadow="drop"
       contentClassName="px-4 py-4"
     >
       <div className="mb-3 flex items-center justify-between">
-        <span className="t-hand text-lg text-[var(--color-ink-500)]">
+        <span className="font-hand text-lg text-[var(--color-ink-deep)]">
           <span className="text-xl">{member.name}</span>의 항목
         </span>
-        <span className="t-data money-text text-xl text-[var(--color-ink-500)]">
+        <span className="font-data money-text text-xl text-[var(--color-ink-deep)]">
           ₩{fmt(total)}
         </span>
       </div>
       {items.length === 0 ? (
-        <p className="t-hand py-3 text-center text-lg text-[var(--color-ink-300)]">
+        <p className="font-hand py-3 text-center text-lg text-[var(--color-ink-soft)]">
           아직 배분된 항목이 없어요.
         </p>
       ) : (
-        <ul className="divide-y divide-dashed divide-[var(--color-ink-200)]/60">
+        <ul className="divide-y divide-dashed divide-[var(--color-ink-line)]">
           {items.map((it, idx) => (
             <li key={idx} className="flex items-center justify-between py-2">
               <div className="flex items-center gap-2">
-                <span className="t-data text-lg text-[var(--color-ink-500)]">{it.name}</span>
+                <span className="font-data text-lg text-[var(--color-ink-deep)]">
+                  {it.name}
+                </span>
                 {it.units > 1 && (
-                  <span className="t-data text-base text-[var(--color-ink-300)]">
+                  <span className="font-data text-base text-[var(--color-ink-soft)]">
                     × {it.units}
                   </span>
                 )}
@@ -995,27 +980,28 @@ function MemberPreview({
                   <SplitBadge>{it.splitNotes[0]}</SplitBadge>
                 )}
               </div>
-              <span className="t-data money-text text-lg text-[var(--color-ink-500)]">
+              <span className="font-data money-text text-lg text-[var(--color-ink-deep)]">
                 ₩{fmt(it.amount)}
               </span>
             </li>
           ))}
         </ul>
       )}
-    </CrayonFrame>
+    </SketchFrame>
   );
 }
 
-/** A pill badge with wobbled outline and crisp label. */
 function SplitBadge({ children }: { children: React.ReactNode }) {
   return (
     <span className="relative inline-block">
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-full border-[1.5px] border-[var(--color-ink-300)]"
-        style={{ filter: "url(#crayonWobbleLight)" }}
+      <SketchRectVisual
+        radius={999}
+        fill="#fafafa"
+        stroke="soft"
+        wobble={0.4}
+        strokeWidth={1.6}
       />
-      <span className="t-hand relative inline-block px-2 text-base text-[var(--color-ink-300)]">
+      <span className="font-hand relative inline-block px-2 text-[0.85rem] text-[var(--color-ink-soft)]">
         {children}
       </span>
     </span>

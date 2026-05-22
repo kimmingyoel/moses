@@ -2,14 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sheet } from "@/components/Sheet";
-import { CrayonFrame } from "@/components/CrayonFrame";
 import {
-  DoodleClose,
-  DoodleWritingPencil,
-  DoodleCheck,
-  DoodleSparkle,
-} from "@/components/Doodles";
+  Sheet,
+  SketchFrame,
+  SketchButton,
+  SketchInput,
+  StepIndicator,
+  IconClose,
+  IconCheck,
+  IconPencil,
+  IconSparkle,
+} from "@/components/sketch";
 
 type Member = { id: number; name: string };
 
@@ -26,7 +29,6 @@ export default function MembersPage() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
 
-  // Simulate OCR finishing after a short delay
   useEffect(() => {
     const t = setTimeout(() => setOcrDone(true), 3800);
     return () => clearTimeout(t);
@@ -49,73 +51,67 @@ export default function MembersPage() {
   return (
     <div className="pb-32">
       <Sheet>
-        {/* Step indicator */}
-        <div className="mb-3 flex items-center gap-2">
-          <span className="t-data text-base text-[var(--color-ink-200)]">
-            STEP 2 / 5
-          </span>
-          <span className="block h-[1px] flex-1 bg-[var(--color-ink-200)]/40" />
-        </div>
+        <StepIndicator current={2} />
 
-        {/* Header */}
-        <div className="mb-7">
-          <h1 className="t-hand text-[2.1rem] leading-tight text-[var(--color-ink-500)] sm:text-[2.4rem]">
+        <div className="mt-5 mb-7">
+          <h1 className="font-hand text-[2.1rem] leading-tight text-[var(--color-ink-deep)] sm:text-[2.4rem]">
             함께 정산할 사람들
           </h1>
-          <p className="t-hand mt-2 text-lg text-[var(--color-ink-300)]">
+          <p className="font-hand mt-2 text-lg text-[var(--color-ink-soft)]">
             정산에 참여할 사람의 이름을 적어 주세요. 최대 20명까지요.
           </p>
         </div>
 
-        {/* Input row */}
-        <div className="mb-7 flex items-center gap-3">
-          <div className="crayon-field flex-1">
-            <input
-              ref={inputRef}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") addMember();
-              }}
-              placeholder="이름을 입력하세요"
-              maxLength={12}
-              className="crayon-input"
-            />
-          </div>
-          <button
-            type="button"
+        {/* Input row — input gets all remaining space; min-w-0 lets it shrink
+            below its placeholder width on narrow viewports. */}
+        <div className="mb-6 flex items-stretch gap-2.5">
+          <SketchInput
+            ref={inputRef}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") addMember();
+            }}
+            placeholder="이름을 입력하세요"
+            maxLength={12}
+            className="min-w-0 flex-1"
+          />
+          <SketchButton
             onClick={addMember}
             disabled={!value.trim() || members.length >= 20}
-            className="crayon-btn"
+            className="shrink-0"
           >
             추가
-          </button>
+          </SketchButton>
         </div>
 
-        {/* Member count badge */}
+        {/* Member count */}
         <div className="mb-4 flex items-center justify-between">
-          <span className="t-hand text-[var(--color-ink-300)]">
+          <span className="font-hand text-[var(--color-ink-soft)]">
             지금까지{" "}
-            <span className="t-data text-xl text-[var(--color-ink-500)]">
+            <span className="font-data text-xl text-[var(--color-ink-deep)]">
               {members.length}
             </span>
             명
           </span>
           {members.length >= 20 && (
-            <span className="t-hand text-base text-[var(--color-ink-300)]">
+            <span className="font-hand text-base text-[var(--color-ink-mute)]">
               (최대 인원에 도달했어요)
             </span>
           )}
         </div>
 
-        {/* Member cards */}
+        {/* Members */}
         {members.length === 0 ? (
           <EmptyMembers />
         ) : (
           <ul className="flex flex-wrap gap-3">
             {members.map((m) => (
               <li key={m.id}>
-                <MemberCard name={m.name} onRemove={() => removeMember(m.id)} />
+                <MemberCard
+                  name={m.name}
+                  onRemove={() => removeMember(m.id)}
+                />
               </li>
             ))}
           </ul>
@@ -136,36 +132,42 @@ export default function MembersPage() {
 
 function MemberCard({ name, onRemove }: { name: string; onRemove: () => void }) {
   return (
-    <CrayonFrame
-      visual="rounded-2xl border-[2.5px] border-[var(--color-ink-400)] bg-[var(--color-paper-50)] shadow-[3px_4px_0_rgba(24,22,15,0.55)]"
+    <SketchFrame
+      radius={18}
+      shadow="soft"
+      contentClassName="inline-flex items-center gap-2 px-4 py-2 pr-2.5"
       className="inline-block"
-      contentClassName="inline-flex items-center gap-2 px-4 py-2 pr-3"
     >
-      <span className="t-hand text-xl text-[var(--color-ink-500)]">{name}</span>
+      <span className="font-hand text-xl text-[var(--color-ink-deep)]">
+        {name}
+      </span>
       <button
         type="button"
         onClick={onRemove}
         aria-label={`${name} 삭제`}
-        className="ml-1 grid h-6 w-6 place-items-center rounded-full transition-colors hover:bg-[var(--color-ink-100)]/50"
+        className="ml-1 grid h-6 w-6 place-items-center rounded-full text-[var(--color-ink-soft)] transition-colors hover:bg-[var(--color-ink-line)]/60 hover:text-[var(--color-ink)]"
       >
-        <DoodleClose className="h-4 w-4" tone="soft" />
+        <IconClose className="h-4 w-4" />
       </button>
-    </CrayonFrame>
+    </SketchFrame>
   );
 }
 
 function EmptyMembers() {
   return (
-    <CrayonFrame
-      visual="rounded-2xl border-[2.5px] border-dashed border-[var(--color-ink-200)]"
+    <SketchFrame
+      radius={18}
+      fill="#fafafa"
+      dashed
+      stroke="muted"
       contentClassName="grid place-items-center px-6 py-8 text-center"
     >
-      <p className="t-hand text-lg text-[var(--color-ink-300)]">
+      <p className="font-hand text-lg text-[var(--color-ink-soft)]">
         아직 추가된 사람이 없어요.
         <br />
-        위에서 이름을 적고 <span className="t-data">추가</span> 버튼을 눌러보세요.
+        위에서 이름을 적고 <span className="font-data">추가</span> 버튼을 눌러보세요.
       </p>
-    </CrayonFrame>
+    </SketchFrame>
   );
 }
 
@@ -178,67 +180,62 @@ function OcrBanner({
   canProceed: boolean;
   onNext: () => void;
 }) {
-  const visual = done
-    ? "rounded-2xl border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[5px_6px_0_rgba(24,22,15,0.7)]"
-    : "rounded-2xl border-[2.5px] border-[var(--color-ink-200)] bg-[var(--color-paper-100)]/95 shadow-[3px_4px_0_rgba(24,22,15,0.35)]";
-
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30">
-      <div className="mx-auto w-full max-w-[720px] px-4 pb-4 sm:pb-6">
-        <CrayonFrame
-          visual={visual}
+      <div className="mx-auto w-full max-w-[760px] px-5 pb-5 sm:px-6 sm:pb-7">
+        <SketchFrame
+          radius={20}
+          shadow="drop"
+          fill="#ffffff"
           className="pointer-events-auto transition-all duration-300"
-          contentClassName="flex items-center gap-3 px-4 py-3 sm:px-5 sm:py-4"
+          contentClassName="flex items-center gap-4 px-5 py-4 sm:px-7 sm:py-5"
         >
-          {/* Icon */}
-          <div className="hidden shrink-0 sm:block">
+          <div className="relative hidden shrink-0 sm:block text-[var(--color-ink-deep)]">
             {done ? (
-              <DoodleCheck className="h-9 w-9" tone="ink" />
+              <>
+                <IconCheck className="h-7 w-7" />
+                <IconSparkle
+                  className="pointer-events-none absolute -right-2 -top-2 h-4 w-4 text-[var(--color-ink)]"
+                  aria-hidden
+                />
+              </>
             ) : (
-              <DoodleWritingPencil className="h-9 w-9" tone="dark" />
+              <IconPencil className="h-7 w-7 animate-pencil" />
             )}
           </div>
 
-          {/* Status text */}
-          <div className="flex-1 leading-tight">
+          <div className="min-w-0 flex-1 leading-tight">
             <p
-              className={`t-hand text-lg sm:text-xl ${done ? "text-[var(--color-ink-500)]" : "text-[var(--color-ink-300)]"}`}
+              className={`font-hand text-lg sm:text-xl ${
+                done
+                  ? "text-[var(--color-ink-deep)]"
+                  : "text-[var(--color-ink-soft)]"
+              }`}
             >
               {done ? "영수증 분석 완료!" : "영수증 분석 중..."}
             </p>
-            {!done && (
-              <span className="t-hand inline-flex items-center gap-0.5 text-base text-[var(--color-ink-200)]">
+            {!done ? (
+              <span className="font-hand inline-flex items-center gap-0.5 text-base text-[var(--color-ink-mute)]">
                 글자를 하나하나 읽고 있어요
                 <span className="dot-1">.</span>
                 <span className="dot-2">.</span>
                 <span className="dot-3">.</span>
               </span>
-            )}
-            {done && (
-              <span className="t-hand text-base text-[var(--color-ink-300)]">
+            ) : (
+              <span className="font-hand text-base text-[var(--color-ink-soft)]">
                 항목을 확인하러 가볼까요?
               </span>
             )}
           </div>
 
-          {/* Decorative sparkle when done */}
-          {done && (
-            <DoodleSparkle
-              className="absolute -top-3 left-12 h-5 w-5 sm:left-14"
-              aria-hidden
-            />
-          )}
-
-          {/* Next button */}
-          <button
-            type="button"
-            disabled={!canProceed}
+          <SketchButton
             onClick={onNext}
-            className="crayon-btn shrink-0"
+            disabled={!canProceed}
+            className="shrink-0"
           >
             {done ? "다음" : "분석 중..."}
-          </button>
-        </CrayonFrame>
+          </SketchButton>
+        </SketchFrame>
       </div>
     </div>
   );

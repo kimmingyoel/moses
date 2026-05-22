@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* ──────────── Fonts ──────────── */
+/* ──────────────── Fonts ──────────────── */
 
 @font-face {
   font-family: "PyeongChangPeace";
@@ -26,48 +26,45 @@
   font-display: swap;
 }
 
-/* ──────────── Design tokens ──────────── */
+/* ──────────────── Design tokens ──────────────── */
 
 @theme {
   --font-logo: "PyeongChangPeace", serif;
   --font-data: "DXTypeB", "Courier New", monospace;
   --font-hand: "OnGeurip-Nuka", system-ui, sans-serif;
 
-  /* Pure grayscale palette — paper to ink (R = G = B at every step) */
-  --color-paper-50: #f2f2f2;   /* light paper */
-  --color-paper-100: #e3e3e3;  /* paper */
-  --color-paper-200: #cfcfcf;  /* deep paper */
-  --color-ink-100: #bababa;    /* light pencil */
-  --color-ink-200: #858585;    /* mid pencil */
-  --color-ink-300: #555555;    /* dark pencil */
-  --color-ink-400: #2a2a2a;    /* charcoal */
-  --color-ink-500: #111111;    /* deep black */
+  /* Pure grayscale — bright paper at top, deep ink at bottom. */
+  --color-paper: #fafafa;
+  --color-paper-soft: #f2f2f2;
+  --color-paper-deep: #e6e6e6;
+  --color-ink-line: #d4d4d4;
+  --color-ink-mute: #9e9e9e;
+  --color-ink-soft: #585858;
+  --color-ink: #262626;
+  --color-ink-deep: #111111;
 }
 
-/* ──────────── Base ──────────── */
+/* ──────────────── Base ──────────────── */
 
-html, body {
-  background-color: var(--color-paper-100);
-  color: var(--color-ink-400);
+html,
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
   font-family: var(--font-hand);
-  font-size: 18px;
+  font-size: 17px;
   min-height: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Subtle paper grain so the white sheets read as paper, not pure CSS. */
 body {
   background-image:
-    /* coarse paper grain — neutral gray noise */
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.15  0 0 0 0 0.15  0 0 0 0 0.15  0 0 0 0.10 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"),
-    /* subtle paper variation without a top/bottom split */
-    radial-gradient(circle at 22% 18%, rgba(255, 255, 255, 0.16) 0%, transparent 42%),
-    radial-gradient(circle at 76% 72%, rgba(0, 0, 0, 0.035) 0%, transparent 48%);
-  background-size: 240px 240px, auto, auto;
-  background-attachment: scroll;
+    radial-gradient(circle at 20% 14%, rgba(0, 0, 0, 0.02) 0%, transparent 55%),
+    radial-gradient(circle at 80% 86%, rgba(0, 0, 0, 0.025) 0%, transparent 58%);
 }
 
-/* Smooth route transitions — page content fades in */
+/* Smooth route transitions */
 @view-transition {
   navigation: auto;
 }
@@ -78,257 +75,18 @@ body {
   animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ──────────── Hand-drawn utilities ──────────── */
+/* ──────────────── Utilities ──────────────── */
 
-/* Wobble: applies the crayon-distortion SVG filter */
-.wobble {
-  filter: url(#crayonWobble);
-}
-
-.wobble-strong {
-  filter: url(#crayonWobbleStrong);
-}
-
-.wobble-light {
-  filter: url(#crayonWobbleLight);
-}
-
-/* Paper sheet — neutral grain background.
- * Layout (position/size) is controlled where the class is applied, not here. */
-.sheet {
-  background-color: var(--color-paper-50);
-  background-image:
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.12  0 0 0 0 0.12  0 0 0 0 0.12  0 0 0 0.07 0'/></filter><rect width='100%25' height='100%25' filter='url(%23p)'/></svg>"),
-    radial-gradient(circle at 20% 8%, rgba(255, 255, 255, 0.18), transparent 52%),
-    radial-gradient(circle at 80% 92%, rgba(0, 0, 0, 0.025), transparent 54%);
-}
-
-/* Sheet edges — rough hand-cut paper feel via clip-path */
-.sheet-edge {
-  --edge-shadow-1: 8px 10px 0 rgba(0, 0, 0, 0.16);
-  --edge-shadow-2: 2px 3px 0 rgba(0, 0, 0, 0.08);
-  box-shadow: var(--edge-shadow-1), var(--edge-shadow-2);
-}
-
-/* Crayon box — draw the effect on ::before so child text stays crisp */
-.crayon-box {
-  position: relative;
-  isolation: isolate;
-  border-radius: 14px;
-}
-
-.crayon-box-soft {
-  position: relative;
-  isolation: isolate;
-  border-radius: 12px;
-}
-
-.crayon-box::before,
-.crayon-box-soft::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background: var(--color-paper-50);
-  border-radius: inherit;
-}
-
-.crayon-box::before {
-  border: 3px solid var(--color-ink-400);
-  box-shadow: 5px 6px 0 rgba(0, 0, 0, 0.85);
-  filter: url(#crayonWobble);
-}
-
-.crayon-box-soft::before {
-  border: 2.5px solid var(--color-ink-300);
-  box-shadow: 3px 4px 0 rgba(0, 0, 0, 0.55);
-  filter: url(#crayonWobbleLight);
-}
-
-.crayon-line {
-  border: 2.5px solid var(--color-ink-400);
-  filter: url(#crayonWobbleLight);
-}
-
-/* Hatching pattern — uneven crayon shading */
-.hatch {
-  background-image:
-    repeating-linear-gradient(
-      135deg,
-      transparent 0 4px,
-      rgba(0, 0, 0, 0.18) 4px 5px,
-      transparent 5px 9px
-    );
-}
-
-.hatch-dense {
-  background-image:
-    repeating-linear-gradient(
-      135deg,
-      transparent 0 3px,
-      rgba(0, 0, 0, 0.32) 3px 4.5px,
-      transparent 4.5px 7px
-    );
-}
-
-/* Hand-drawn button — outline goes on ::before so the label stays crisp.
- * isolation creates a stacking context so the z-index:-1 on ::before is
- * scoped (it sits behind the button's text but doesn't fall behind the page). */
-.crayon-btn {
-  position: relative;
-  isolation: isolate;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.7rem 1.4rem;
-  font-family: var(--font-hand);
-  font-size: 1.16rem;
-  line-height: 1.15;
-  color: var(--color-paper-50);
-  background: transparent;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: color 120ms ease;
-}
-
-.crayon-btn::after {
-  content: "";
-  position: absolute;
-  inset: -8px;
-  z-index: -2;
-}
-
-.crayon-btn::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: var(--color-ink-400);
-  border: 3px solid var(--color-ink-500);
-  border-radius: inherit;
-  box-shadow: 4px 5px 0 rgba(0, 0, 0, 0.7);
-  filter: url(#crayonWobble);
-  transition: box-shadow 120ms ease, background 120ms ease, border-color 120ms ease, transform 120ms ease;
-}
-.crayon-btn:hover:not(:disabled)::before {
-  box-shadow: 6px 7px 0 rgba(0, 0, 0, 0.7);
-  transform: translate(-1px, -2px);
-}
-
-.crayon-btn:active:not(:disabled)::before {
-  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.6);
-  transform: translate(1px, 2px);
-}
-
-.crayon-btn:disabled {
-  color: var(--color-ink-200);
-  cursor: not-allowed;
-}
-.crayon-btn:disabled::before {
-  background: var(--color-ink-100);
-  border-color: var(--color-ink-200);
-  box-shadow: none;
-}
-
-.crayon-btn--ghost {
-  color: var(--color-ink-400);
-}
-.crayon-btn--ghost::before {
-  background: transparent;
-  border-color: var(--color-ink-400);
-  box-shadow: 3px 4px 0 rgba(0, 0, 0, 0.4);
-}
-.crayon-btn--ghost:hover:not(:disabled)::before {
-  background: rgba(0, 0, 0, 0.04);
-}
-
-.crayon-btn--small {
-  padding: 0.46rem 0.95rem;
-  font-size: 1.06rem;
-}
-.crayon-btn--small::before {
-  border-width: 2.5px;
-  box-shadow: 3px 4px 0 rgba(0, 0, 0, 0.6);
-}
-
-/* Hand-drawn text input — wrap input in .crayon-field; the wrapper draws the
- * wobbled frame on ::before so input text stays crisp. */
-/* Wrap an <input> in .crayon-field so the wobbled frame stays on ::before
- * and the typed text remains crisp on top. */
-.crayon-field {
-  position: relative;
-  isolation: isolate;
-  width: 100%;
-  border-radius: 10px;
-}
-.crayon-field::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: rgba(255, 255, 255, 0.7);
-  border: 2.5px solid var(--color-ink-400);
-  border-radius: inherit;
-  filter: url(#crayonWobbleLight);
-  transition: background 120ms ease, box-shadow 120ms ease;
-}
-.crayon-field:focus-within::before {
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.5);
-}
-
-.crayon-input {
-  width: 100%;
-  padding: 0.65rem 0.9rem;
-  font-family: var(--font-hand);
-  font-size: 1.16rem;
-  line-height: 1.2;
-  color: var(--color-ink-500);
-  background: transparent;
-  border: none;
-  outline: none;
-}
-
-.crayon-input::placeholder {
-  color: var(--color-ink-200);
-  font-family: var(--font-hand);
-}
-
-/* Crayon-textured underline for inline-edit cells */
-.crayon-underline {
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 6' preserveAspectRatio='none'><path d='M2 4 Q 18 1, 32 4 T 62 4 T 92 3 T 118 4' stroke='%232a2a2a' stroke-width='2.2' fill='none' stroke-linecap='round'/></svg>");
-  background-repeat: no-repeat;
-  background-size: 100% 6px;
-  background-position: bottom center;
-  padding-bottom: 6px;
-}
-
-/* Soft dashed crayon border (used for drag-zone reveal) */
-.crayon-dashed {
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'><rect width='100%25' height='100%25' x='0' y='0' fill='none' stroke='%232a2a2a' stroke-width='4' stroke-dasharray='14 9 4 9' rx='18' ry='18'/></svg>");
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  filter: url(#crayonWobble);
-}
-
-/* Text styles */
-.t-logo {
+.font-logo {
   font-family: var(--font-logo);
-  letter-spacing: 0.01em;
-  color: var(--color-ink-500);
 }
 
-.t-hand {
+.font-hand {
   font-family: var(--font-hand);
-  color: var(--color-ink-400);
 }
 
-.t-data {
+.font-data {
   font-family: var(--font-data);
-  color: var(--color-ink-500);
   letter-spacing: 0;
 }
 
@@ -338,81 +96,7 @@ body {
   font-feature-settings: "tnum" 1;
 }
 
-.banner-back-btn {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.25rem;
-  padding: 0.34rem 0.2rem;
-  color: var(--color-ink-300);
-  font-family: var(--font-hand);
-  font-size: 1.08rem;
-  line-height: 1;
-  background: transparent;
-  transition: color 120ms ease, opacity 120ms ease, text-shadow 120ms ease, transform 120ms ease;
-}
-
-.banner-back-btn::after {
-  content: "";
-  position: absolute;
-  left: 0.05rem;
-  right: 0.05rem;
-  bottom: 0.2rem;
-  height: 0.42rem;
-  opacity: 0;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 10' preserveAspectRatio='none'><path d='M2 6 Q 18 3, 36 6 T 70 6 T 118 5' stroke='%232a2a2a' stroke-width='2.1' fill='none' stroke-linecap='round'/></svg>");
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  transition: opacity 120ms ease, transform 120ms ease;
-}
-
-.banner-back-btn:hover {
-  color: var(--color-ink-500);
-  text-shadow: 0.035em 0.035em 0 rgba(0, 0, 0, 0.1);
-  transform: translateY(-1px);
-}
-
-.banner-back-btn:hover::after {
-  opacity: 0.95;
-  transform: translateY(1px);
-}
-
-.banner-back-btn:active {
-  color: var(--color-ink-500);
-  opacity: 0.72;
-  text-shadow: none;
-  transform: translateY(1px);
-}
-
-.banner-back-btn:active::after {
-  opacity: 0.55;
-  transform: translateY(2px);
-}
-
-.editable-underline {
-  pointer-events: none;
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -3px;
-  height: 10px;
-  opacity: 0;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 10' preserveAspectRatio='none'><path d='M2 5 Q 18 2, 32 5 T 62 5 T 92 4 T 118 5' stroke='%232a2a2a' stroke-width='2.2' fill='none' stroke-linecap='round'/></svg>");
-  background-repeat: no-repeat;
-  background-size: 100% 10px;
-  background-position: center;
-  transition: opacity 150ms ease;
-}
-
-.peer:focus ~ .editable-underline {
-  opacity: 1;
-}
-
-.peer:hover ~ .editable-underline {
-  opacity: 0.5;
-}
-
+/* ─── Rolling currency animation ─── */
 .rolling-amount {
   display: inline-flex;
   align-items: baseline;
@@ -444,43 +128,37 @@ body {
 @keyframes digit-roll {
   0% {
     opacity: 0.35;
-    transform: translateY(0.85em) rotate(3deg);
-    filter: blur(1px);
+    transform: translateY(0.7em);
   }
   55% {
     opacity: 1;
-    transform: translateY(-0.18em) rotate(-1deg);
-    filter: blur(0);
+    transform: translateY(-0.12em);
   }
   100% {
-    transform: translateY(0) rotate(0);
+    transform: translateY(0);
   }
 }
 
-.result-detail {
-  display: grid;
-  grid-template-rows: 0fr;
+/* ─── Expandable detail (result page) ─── */
+/* max-height pattern is friendlier to Safari and avoids the width re-flow
+ * that grid-template-rows: 0fr → 1fr triggers during the animation. */
+.detail-collapse {
+  max-height: 0;
   opacity: 0;
-  transform: translateY(-4px);
-  transition:
-    grid-template-rows 280ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 180ms ease,
-    transform 220ms ease;
-  contain: paint;
-}
-
-.result-detail > * {
-  min-height: 0;
   overflow: hidden;
+  transform: translateZ(0);
+  contain: layout paint;
+  transition:
+    max-height 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease;
 }
 
-.result-detail--open {
-  grid-template-rows: 1fr;
+.detail-collapse--open {
+  max-height: 1400px;
   opacity: 1;
-  transform: translateY(0);
 }
 
-/* Simple shake/wobble animation for icons */
+/* ─── Icon "nudge" animation (used for upload icon) ─── */
 @keyframes nudge {
   0%, 100% { transform: translateY(0) rotate(0); }
   25% { transform: translateY(-3px) rotate(-3deg); }
@@ -492,26 +170,7 @@ body {
   animation: nudge 1.4s ease-in-out infinite;
 }
 
-@keyframes pencil-write {
-  0%, 100% { transform: rotate(-6deg) translateX(0); }
-  50% { transform: rotate(6deg) translateX(4px); }
-}
-
-.animate-pencil {
-  animation: pencil-write 0.9s ease-in-out infinite;
-  transform-origin: 50% 100%;
-}
-
-@keyframes draw-in {
-  from { stroke-dashoffset: var(--draw-length, 800); opacity: 0.3; }
-  to { stroke-dashoffset: 0; opacity: 1; }
-}
-
-.animate-draw {
-  stroke-dasharray: var(--draw-length, 800);
-  animation: draw-in 0.8s ease-out forwards;
-}
-
+/* ─── Loading dots (OCR banner) ─── */
 @keyframes dots-pulse {
   0%, 100% { opacity: 0.3; }
   50% { opacity: 1; }
@@ -521,19 +180,10 @@ body {
 .dot-2 { animation: dots-pulse 1.2s ease-in-out 0.2s infinite; }
 .dot-3 { animation: dots-pulse 1.2s ease-in-out 0.4s infinite; }
 
-@keyframes wobble-slow {
-  0%, 100% { transform: rotate(-1deg); }
-  50% { transform: rotate(1deg); }
-}
-
-.animate-wobble {
-  animation: wobble-slow 3s ease-in-out infinite;
-}
-
-/* Counter roll — used by member totals */
+/* ─── Count bump (member totals when assigned) ─── */
 @keyframes count-bump {
   0% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+  50% { transform: translateY(-5px); }
   100% { transform: translateY(0); }
 }
 
@@ -541,17 +191,59 @@ body {
   animation: count-bump 0.36s ease-out;
 }
 
-/* Drag cursor */
+/* ─── Pencil wobble (member writing) ─── */
+@keyframes pencil-write {
+  0%, 100% { transform: rotate(-6deg) translateX(0); }
+  50% { transform: rotate(6deg) translateX(3px); }
+}
+
+.animate-pencil {
+  animation: pencil-write 0.9s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+
+/* ─── Drag cursor ─── */
 .draggable {
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
 }
-.draggable * {
-  user-select: none;
-  -webkit-user-select: none;
-}
+
 .draggable:active {
   cursor: grabbing;
+}
+
+/* ─── Soft underline that appears on focus/hover for editable cells ─── */
+.editable-cell {
+  position: relative;
+}
+
+.editable-cell input {
+  background: transparent;
+  outline: none;
+  border: none;
+}
+
+.editable-cell::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 5px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 5' preserveAspectRatio='none'><path d='M2 2.5 Q 18 1, 32 2.8 T 62 2.6 T 92 2 T 118 2.5' stroke='%23262626' stroke-width='2' fill='none' stroke-linecap='round'/></svg>");
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  opacity: 0;
+  transition: opacity 160ms ease;
+  pointer-events: none;
+}
+
+.editable-cell:hover::after {
+  opacity: 0.4;
+}
+
+.editable-cell:focus-within::after {
+  opacity: 1;
 }

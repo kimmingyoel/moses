@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { CrayonFilters } from "@/components/CrayonFilters";
 
 export const metadata: Metadata = {
   title: "모세 — 영수증 더치페이",
@@ -15,8 +14,7 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="min-h-screen">
-        <CrayonFilters />
-        <main className="mx-auto w-full max-w-[720px] px-4 py-8 sm:py-12">
+        <main className="mx-auto w-full max-w-[760px] px-4 py-8 sm:py-12">
           {children}
         </main>
       </body>

@@ -2,9 +2,16 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sheet } from "@/components/Sheet";
-import { CrayonFrame } from "@/components/CrayonFrame";
-import { DoodleClose, DoodleExclaim } from "@/components/Doodles";
+import {
+  Sheet,
+  SketchFrame,
+  SketchButton,
+  StepIndicator,
+  IconClose,
+  IconPlus,
+  IconAlert,
+  IconArrowLeft,
+} from "@/components/sketch";
 
 type Item = {
   id: number;
@@ -49,39 +56,49 @@ export default function ReviewPage() {
 
   return (
     <div className="pb-32">
-      <Sheet performanceSafe>
-        {/* Step + header */}
-        <div className="mb-3 flex items-center gap-2">
-          <span className="t-data text-base text-[var(--color-ink-200)]">
-            STEP 3 / 5
-          </span>
-          <span className="block h-[1px] flex-1 bg-[var(--color-ink-200)]/40" />
-        </div>
-        <div className="mb-6">
-          <h1 className="t-hand text-[2.1rem] leading-tight text-[var(--color-ink-500)] sm:text-[2.4rem]">
+      <Sheet>
+        <StepIndicator current={3} />
+
+        <div className="mt-5 mb-6">
+          <h1 className="font-hand text-[2.1rem] leading-tight text-[var(--color-ink-deep)] sm:text-[2.4rem]">
             영수증 확인
           </h1>
-          <p className="t-hand mt-2 text-lg text-[var(--color-ink-300)]">
+          <p className="font-hand mt-2 text-lg text-[var(--color-ink-soft)]">
             잘못 읽힌 항목이 있나요? 칸을 눌러서 바로 고치면 돼요.
           </p>
         </div>
 
-        {/* Receipt — list of editable item cards */}
-        <CrayonFrame
-          visual="rounded-2xl border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[4px_5px_0_rgba(24,22,15,0.6)]"
-          filter="none"
-          contentClassName="px-3 py-4 sm:px-5"
+        {hasInvalid && (
+          <SketchFrame
+            radius={14}
+            fill="#fafafa"
+            stroke="soft"
+            className="mb-4"
+            contentClassName="flex items-start gap-2.5 px-4 py-3 font-hand text-base text-[var(--color-ink)]"
+          >
+            <IconAlert className="mt-[3px] h-5 w-5 shrink-0" />
+            <span className="min-w-0 leading-snug">
+              비어 있거나 0인 칸을 채워야 다음으로 넘어갈 수 있어요.
+            </span>
+          </SketchFrame>
+        )}
+
+        {/* Receipt — list of editable items */}
+        <SketchFrame
+          radius={20}
+          fill="#fafafa"
+          shadow="soft"
+          contentClassName="px-4 py-4 sm:px-5"
         >
           <div className="mb-3 flex items-center gap-2">
-            <span className="t-hand text-base text-[var(--color-ink-300)]">
+            <span className="font-hand text-base text-[var(--color-ink-soft)]">
               읽힌 항목 · {items.length}개
             </span>
-            <span className="h-[1px] flex-1 bg-[var(--color-ink-200)]/40" />
+            <span className="h-[1px] flex-1 bg-[var(--color-ink-line)]" />
           </div>
 
-          {/* Rows */}
           {items.length === 0 ? (
-            <p className="t-hand py-6 text-center text-[var(--color-ink-300)]">
+            <p className="font-hand py-6 text-center text-[var(--color-ink-soft)]">
               항목이 없어요. 아래에서 추가해 주세요.
             </p>
           ) : (
@@ -97,72 +114,57 @@ export default function ReviewPage() {
             </ul>
           )}
 
-          {/* Add row */}
           <div className="mt-4 flex justify-center">
             <button
               type="button"
               onClick={add}
-              className="t-hand group inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[var(--color-ink-300)] transition-colors hover:text-[var(--color-ink-500)]"
+              className="group inline-flex items-center gap-2 text-[var(--color-ink-soft)] transition-colors hover:text-[var(--color-ink-deep)]"
             >
-              <span aria-hidden className="relative grid h-8 w-8 place-items-center">
+              <span className="relative grid h-8 w-8 place-items-center">
                 <span
+                  className="absolute inset-0 rounded-full border-[2px] border-[var(--color-ink)] transition-shadow group-hover:shadow-[2px_2px_0_rgba(38,38,38,0.18)]"
                   aria-hidden
-                  className="pointer-events-none absolute inset-0 rounded-full border-[2.5px] border-[var(--color-ink-400)] transition-shadow group-hover:shadow-[2px_2px_0_rgba(24,22,15,0.35)]"
-                  style={{ filter: "url(#crayonWobbleLight)" }}
                 />
-                <span className="relative text-xl text-[var(--color-ink-400)]">+</span>
+                <IconPlus className="relative h-4 w-4" />
               </span>
-              <span className="text-xl">항목 추가</span>
+              <span className="font-hand text-lg">항목 추가</span>
             </button>
           </div>
-        </CrayonFrame>
+        </SketchFrame>
 
-        {/* Total summary */}
-        <div className="mt-6 flex items-end justify-between border-t-[2.5px] border-dashed border-[var(--color-ink-300)] pt-4">
-          <span className="t-hand text-lg text-[var(--color-ink-400)]">합계</span>
-          <span className="t-data money-text text-3xl font-bold text-[var(--color-ink-500)]">
+        {/* Total */}
+        <div className="mt-6 flex items-end justify-between border-t-2 border-dashed border-[var(--color-ink-soft)] pt-4">
+          <span className="font-hand text-lg text-[var(--color-ink)]">합계</span>
+          <span className="font-data money-text text-3xl font-bold text-[var(--color-ink-deep)]">
             ₩{fmt(total)}
           </span>
         </div>
-
-        {hasInvalid && (
-          <CrayonFrame
-            visual="rounded-xl border-[2px] border-[var(--color-ink-300)] bg-[var(--color-paper-100)]"
-            filter="none"
-            className="mt-4"
-            contentClassName="t-hand flex items-center gap-2 px-3 py-2 text-base text-[var(--color-ink-400)]"
-          >
-            <DoodleExclaim className="h-5 w-5 shrink-0" tone="ink" />
-            <span>비어 있거나 0인 칸을 채워야 다음으로 넘어갈 수 있어요.</span>
-          </CrayonFrame>
-        )}
       </Sheet>
 
       {/* Bottom action bar */}
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30">
-        <div className="mx-auto w-full max-w-[720px] px-4 pb-4 sm:pb-6">
-          <CrayonFrame
-            visual="rounded-2xl border-[3px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[5px_6px_0_rgba(24,22,15,0.7)]"
-            filter="none"
+        <div className="mx-auto w-full max-w-[760px] px-4 pb-4 sm:pb-6">
+          <SketchFrame
+            radius={20}
+            shadow="drop"
             className="pointer-events-auto"
             contentClassName="flex items-center justify-between gap-3 px-4 py-3 sm:px-5"
           >
             <button
               type="button"
               onClick={() => router.back()}
-              className="banner-back-btn"
+              className="inline-flex items-center gap-1.5 font-hand text-lg text-[var(--color-ink-soft)] transition-colors hover:text-[var(--color-ink-deep)]"
             >
-              ← 이전
+              <IconArrowLeft className="h-4 w-4" />
+              이전
             </button>
-            <button
-              type="button"
-              disabled={items.length === 0 || hasInvalid}
+            <SketchButton
               onClick={() => router.push("/assign")}
-              className="crayon-btn"
+              disabled={items.length === 0 || hasInvalid}
             >
               확인
-            </button>
-          </CrayonFrame>
+            </SketchButton>
+          </SketchFrame>
         </div>
       </div>
     </div>
@@ -186,8 +188,7 @@ function ItemRow({
   const priceMissing = !item.unitPrice || item.unitPrice <= 0;
 
   return (
-    <li className="rounded-xl border-[2px] border-dashed border-[var(--color-ink-200)]/70 px-2.5 py-2.5">
-      {/* Top: name + remove */}
+    <li className="rounded-xl border-2 border-dashed border-[var(--color-ink-line)] px-3 py-2.5">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <EditableCell
@@ -204,14 +205,13 @@ function ItemRow({
           type="button"
           onClick={onRemove}
           aria-label="삭제"
-          className="mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-full transition-colors hover:bg-[var(--color-ink-100)]/50"
+          className="mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-full text-[var(--color-ink-soft)] transition-colors hover:bg-[var(--color-ink-line)]/60 hover:text-[var(--color-ink-deep)]"
         >
-          <DoodleClose className="h-4 w-4" tone="soft" />
+          <IconClose className="h-4 w-4" />
         </button>
       </div>
 
-      {/* Bottom: math expression — qty × price = total */}
-      <div className="mt-2 grid gap-2 pl-1 pr-2 sm:grid-cols-[1fr_auto] sm:items-center">
+      <div className="mt-2 grid gap-2 pr-1 sm:grid-cols-[1fr_auto] sm:items-center">
         <div className="grid grid-cols-2 gap-x-3 gap-y-1 sm:flex sm:items-center sm:gap-1.5">
           <div className="flex min-w-0 items-center gap-1.5">
             <FieldLabel>수량</FieldLabel>
@@ -224,7 +224,7 @@ function ItemRow({
               width={64}
             />
           </div>
-          <span className="hidden t-data text-base text-[var(--color-ink-200)] sm:inline">
+          <span className="hidden font-data text-base text-[var(--color-ink-mute)] sm:inline">
             ×
           </span>
           <div className="flex min-w-0 items-center gap-1.5">
@@ -239,7 +239,7 @@ function ItemRow({
             />
           </div>
         </div>
-        <div className="t-data money-text justify-self-end text-lg font-semibold text-[var(--color-ink-500)]">
+        <div className="font-data money-text justify-self-end text-lg font-semibold text-[var(--color-ink-deep)]">
           ₩{lineTotal.toLocaleString("ko-KR")}
         </div>
       </div>
@@ -249,7 +249,7 @@ function ItemRow({
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="t-hand whitespace-nowrap text-[0.9rem] uppercase tracking-wider text-[var(--color-ink-200)]">
+    <span className="font-hand whitespace-nowrap text-[0.85rem] uppercase tracking-wider text-[var(--color-ink-mute)]">
       {children}
     </span>
   );
@@ -272,26 +272,28 @@ function EditableCell({
   onChange: (v: string) => void;
   large?: boolean;
 }) {
-  const cls =
+  const fontCls =
     family === "hand"
-      ? `t-hand ${large ? "text-xl" : "text-lg"}`
-      : `t-data ${large ? "text-xl" : "text-lg"}`;
+      ? `font-hand ${large ? "text-xl" : "text-lg"}`
+      : `font-data ${large ? "text-xl" : "text-lg"}`;
   const alignCls =
     align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left";
 
   return (
-    <div className={`relative overflow-visible ${invalid ? "bg-[var(--color-paper-100)]/60 rounded-md" : ""}`}>
+    <div
+      className={`editable-cell relative ${
+        invalid ? "rounded-md bg-[#f6e9e9]/40" : ""
+      }`}
+    >
       <input
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className={`peer w-full bg-transparent px-1 py-1 ${cls} ${alignCls} text-[var(--color-ink-500)] outline-none placeholder:text-[var(--color-ink-200)]`}
+        className={`w-full bg-transparent px-1 py-1 ${fontCls} ${alignCls} text-[var(--color-ink-deep)] outline-none placeholder:text-[var(--color-ink-mute)]`}
       />
-      <span aria-hidden className="editable-underline" />
       {invalid && (
-        <DoodleExclaim
-          className="pointer-events-none absolute -right-1 -top-1 h-4 w-4"
-          tone="ink"
+        <IconAlert
+          className="pointer-events-none absolute -right-1 -top-1 h-4 w-4 text-[var(--color-ink-deep)]"
           aria-hidden
         />
       )}
@@ -318,7 +320,6 @@ function EditableNumber({
 }) {
   const alignCls =
     align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left";
-  // Show display string with prefix/suffix; internal value is plain number
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<string>(String(value));
 
@@ -332,7 +333,9 @@ function EditableNumber({
 
   return (
     <div
-      className={`relative overflow-visible ${invalid ? "bg-[var(--color-paper-100)]/60 rounded-md" : ""}`}
+      className={`editable-cell relative ${
+        invalid ? "rounded-md bg-[#f6e9e9]/40" : ""
+      }`}
       style={width ? { width } : undefined}
     >
       <input
@@ -347,13 +350,11 @@ function EditableNumber({
         }}
         onChange={(e) => setDraft(e.target.value)}
         inputMode="numeric"
-        className={`peer w-full bg-transparent px-1 py-1 t-data text-lg ${alignCls} text-[var(--color-ink-500)] outline-none`}
+        className={`w-full bg-transparent px-1 py-1 font-data text-lg ${alignCls} text-[var(--color-ink-deep)] outline-none`}
       />
-      <span aria-hidden className="editable-underline" />
       {invalid && (
-        <DoodleExclaim
-          className="pointer-events-none absolute -right-1 -top-1 h-4 w-4"
-          tone="ink"
+        <IconAlert
+          className="pointer-events-none absolute -right-1 -top-1 h-4 w-4 text-[var(--color-ink-deep)]"
           aria-hidden
         />
       )}
