@@ -27,6 +27,7 @@ export default function MembersPage() {
   const [value, setValue] = useState("");
   const [ocrDone, setOcrDone] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const submitAfterCompositionRef = useRef(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -34,11 +35,13 @@ export default function MembersPage() {
     return () => clearTimeout(t);
   }, []);
 
-  const addMember = () => {
-    const name = value.trim();
+  const addMember = (rawName = value) => {
+    const name = rawName.trim();
     if (!name) return;
     if (members.length >= 20) return;
-    setMembers((m) => [...m, { id: Date.now(), name }]);
+    setMembers((m) =>
+      m.length >= 20 ? m : [...m, { id: Date.now(), name }],
+    );
     setValue("");
     inputRef.current?.focus();
   };
@@ -69,15 +72,32 @@ export default function MembersPage() {
             ref={inputRef}
             value={value}
             onChange={(e) => setValue(e.target.value)}
+            onCompositionEnd={(e) => {
+              if (!submitAfterCompositionRef.current) return;
+              submitAfterCompositionRef.current = false;
+              const committedValue = e.currentTarget.value;
+
+              window.setTimeout(() => {
+                addMember(inputRef.current?.value ?? committedValue);
+              }, 0);
+            }}
             onKeyDown={(e) => {
-              if (e.key === "Enter") addMember();
+              if (e.key !== "Enter") return;
+
+              if (e.nativeEvent.isComposing || e.keyCode === 229) {
+                submitAfterCompositionRef.current = true;
+                return;
+              }
+
+              e.preventDefault();
+              addMember(e.currentTarget.value);
             }}
             placeholder="이름을 입력하세요"
             maxLength={12}
             className="min-w-0 flex-1"
           />
           <SketchButton
-            onClick={addMember}
+            onClick={() => addMember()}
             disabled={!value.trim() || members.length >= 20}
             className="shrink-0"
           >
