@@ -113,7 +113,7 @@ export default function UploadPage() {
         {/* ─── Logo + tagline ─── */}
         <div className="relative z-10 mb-8 text-center sm:mb-10">
           <MosesLogo size="xl" />
-          <p className="t-hand mt-4 text-lg text-[var(--color-ink-300)] sm:text-xl">
+          <p className="t-hand mt-4 text-xl text-[var(--color-ink-300)] sm:text-2xl">
             영수증 하나면 정산 끝
           </p>
         </div>
@@ -154,7 +154,7 @@ export default function UploadPage() {
               className={`w-16 sm:w-20 ${dragOver ? "animate-nudge" : ""}`}
               aria-hidden
             />
-            <p className="t-hand text-center text-lg text-[var(--color-ink-400)] sm:text-xl">
+            <p className="t-hand text-center text-xl text-[var(--color-ink-400)] sm:text-2xl">
               {dragOver ? "놓으면 바로 시작!" : "여기에 영수증을 올려주세요"}
             </p>
             <button
@@ -168,7 +168,7 @@ export default function UploadPage() {
         </div>
 
         {/* footnote */}
-        <p className="relative z-10 mt-5 text-center text-sm t-hand text-[var(--color-ink-200)]">
+        <p className="relative z-10 mt-5 text-center text-base t-hand text-[var(--color-ink-200)]">
           JPG, PNG, HEIC · 여러 장도 한 번에 OK
         </p>
       </Sheet>

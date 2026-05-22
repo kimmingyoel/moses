@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sheet } from "@/components/Sheet";
 import { CrayonFrame } from "@/components/CrayonFrame";
@@ -47,21 +47,37 @@ export default function AssignPage() {
 
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [hoveredMemberId, setHoveredMemberId] = useState<number | null>(null);
+  const [previewMemberId, setPreviewMemberId] = useState<number | null>(null);
   const [draggingItemId, setDraggingItemId] = useState<number | null>(null);
   const [dropTargetMemberId, setDropTargetMemberId] = useState<number | null>(null);
 
   // Counter bump effect — track which member totals just changed
   const [bumpedMemberIds, setBumpedMemberIds] = useState<Set<number>>(new Set());
   const bumpTimerRef = useRef<number | undefined>(undefined);
+  const hoverOpenTimerRef = useRef<number | undefined>(undefined);
+  const hoverCloseTimerRef = useRef<number | undefined>(undefined);
+  const suppressPreviewUntilRef = useRef(0);
 
   const triggerBump = useCallback((ids: number[]) => {
     setBumpedMemberIds(new Set(ids));
     if (bumpTimerRef.current) clearTimeout(bumpTimerRef.current);
     bumpTimerRef.current = window.setTimeout(
       () => setBumpedMemberIds(new Set()),
-      380
+      680
     );
   }, []);
+
+  const clearPreviewTimers = useCallback(() => {
+    if (hoverOpenTimerRef.current) clearTimeout(hoverOpenTimerRef.current);
+    if (hoverCloseTimerRef.current) clearTimeout(hoverCloseTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (bumpTimerRef.current) clearTimeout(bumpTimerRef.current);
+      clearPreviewTimers();
+    };
+  }, [clearPreviewTimers]);
 
   /* Derived */
   const remainingQty = useCallback(
@@ -155,6 +171,39 @@ export default function AssignPage() {
     });
   };
 
+  const suppressPreviewBriefly = useCallback(() => {
+    suppressPreviewUntilRef.current = Date.now() + 650;
+    clearPreviewTimers();
+    setPreviewMemberId(null);
+  }, [clearPreviewTimers]);
+
+  const handleMemberEnter = useCallback(
+    (id: number) => {
+      setHoveredMemberId(id);
+      if (draggingItemId !== null || Date.now() < suppressPreviewUntilRef.current) {
+        return;
+      }
+
+      if (hoverCloseTimerRef.current) clearTimeout(hoverCloseTimerRef.current);
+      if (hoverOpenTimerRef.current) clearTimeout(hoverOpenTimerRef.current);
+      hoverOpenTimerRef.current = window.setTimeout(
+        () => setPreviewMemberId(id),
+        previewMemberId === null ? 220 : 120
+      );
+    },
+    [draggingItemId, previewMemberId]
+  );
+
+  const handleMemberLeave = useCallback(() => {
+    setHoveredMemberId(null);
+    if (hoverOpenTimerRef.current) clearTimeout(hoverOpenTimerRef.current);
+    if (hoverCloseTimerRef.current) clearTimeout(hoverCloseTimerRef.current);
+    hoverCloseTimerRef.current = window.setTimeout(
+      () => setPreviewMemberId(null),
+      280
+    );
+  }, []);
+
   /* Item-click flow (tap-to-assign as fallback) */
   const handleItemClick = (itemId: number) => {
     if (selected.size === 0) return; // do nothing — show hint elsewhere
@@ -162,7 +211,34 @@ export default function AssignPage() {
   };
 
   /* Drag flow */
-  const handleDragStart = (itemId: number) => setDraggingItemId(itemId);
+  const findMemberAtPoint = useCallback((x: number, y: number) => {
+    const node = document.elementFromPoint(x, y);
+    const memberNode = node?.closest<HTMLElement>("[data-member-id]");
+    const id = memberNode?.dataset.memberId;
+    return id ? Number(id) : null;
+  }, []);
+
+  const handleDragStart = (itemId: number) => {
+    clearPreviewTimers();
+    setPreviewMemberId(null);
+    setDraggingItemId(itemId);
+  };
+  const handleDragMove = (x: number, y: number) => {
+    setDropTargetMemberId(findMemberAtPoint(x, y));
+  };
+  const handleDropAtPoint = (itemId: number, x: number, y: number) => {
+    const memberId = findMemberAtPoint(x, y);
+    if (memberId !== null) {
+      if (selected.size > 1) {
+        performAssign(itemId, Array.from(selected));
+      } else {
+        performAssign(itemId, [memberId]);
+      }
+      suppressPreviewBriefly();
+    }
+    setDraggingItemId(null);
+    setDropTargetMemberId(null);
+  };
   const handleDragEnd = () => {
     setDraggingItemId(null);
     setDropTargetMemberId(null);
@@ -174,9 +250,11 @@ export default function AssignPage() {
     } else {
       performAssign(itemId, [memberId]);
     }
+    suppressPreviewBriefly();
   };
   const handleDropOnHuddle = (itemId: number) => {
     performAssign(itemId, Array.from(selected));
+    suppressPreviewBriefly();
   };
 
   /* Member items preview (for hover) */
@@ -209,8 +287,8 @@ export default function AssignPage() {
     [assignments, items]
   );
 
-  const previewMember = hoveredMemberId
-    ? members.find((m) => m.id === hoveredMemberId)
+  const previewMember = previewMemberId
+    ? members.find((m) => m.id === previewMemberId)
     : null;
   const previewItems = previewMember ? memberItemsBreakdown(previewMember.id) : [];
 
@@ -221,22 +299,26 @@ export default function AssignPage() {
       <Sheet>
         {/* Step + header */}
         <div className="mb-3 flex items-center gap-2">
-          <span className="t-data text-sm text-[var(--color-ink-200)]">
+          <span className="t-data text-base text-[var(--color-ink-200)]">
             STEP 4 / 5
           </span>
           <span className="block h-[1px] flex-1 bg-[var(--color-ink-200)]/40" />
           {/* Undo / Redo */}
-          <div className="flex items-center gap-1">
-            {history.length > 0 && (
-              <IconButton onClick={undo} aria-label="되돌리기">
-                <DoodleUndo className="h-5 w-5" tone="dark" />
-              </IconButton>
-            )}
-            {redoStack.length > 0 && (
-              <IconButton onClick={redo} aria-label="다시 하기">
-                <DoodleRedo className="h-5 w-5" tone="dark" />
-              </IconButton>
-            )}
+          <div className="grid grid-cols-[36px_36px] gap-1">
+            <span className="grid h-9 w-9 place-items-center">
+              {history.length > 0 && (
+                <IconButton onClick={undo} aria-label="되돌리기">
+                  <DoodleUndo className="h-5 w-5" tone="dark" />
+                </IconButton>
+              )}
+            </span>
+            <span className="grid h-9 w-9 place-items-center">
+              {redoStack.length > 0 && (
+                <IconButton onClick={redo} aria-label="다시 하기">
+                  <DoodleRedo className="h-5 w-5" tone="dark" />
+                </IconButton>
+              )}
+            </span>
           </div>
         </div>
 
@@ -244,7 +326,7 @@ export default function AssignPage() {
           <h1 className="t-hand text-[2.1rem] leading-tight text-[var(--color-ink-500)] sm:text-[2.4rem]">
             누가 뭘 먹었지?
           </h1>
-          <p className="t-hand mt-2 text-[var(--color-ink-300)]">
+          <p className="t-hand mt-2 text-lg text-[var(--color-ink-300)]">
             사람을 누른 뒤 항목을 끌어다 놓아 보세요.
             <br className="hidden sm:block" /> 여럿을 함께 고르면 나눠 낼 수도 있어요.
           </p>
@@ -261,8 +343,8 @@ export default function AssignPage() {
           draggingItemId={draggingItemId}
           memberTotal={memberTotal}
           onSelectToggle={toggleSelect}
-          onHover={(id) => setHoveredMemberId(id)}
-          onUnhover={() => setHoveredMemberId(null)}
+          onHover={handleMemberEnter}
+          onUnhover={handleMemberLeave}
           onDragOverMember={(id) => setDropTargetMemberId(id)}
           onDragLeaveMember={() => setDropTargetMemberId(null)}
           onDropOnMember={handleDropOnMember}
@@ -274,13 +356,13 @@ export default function AssignPage() {
           <CrayonFrame
             visual="rounded-full border-[2px] border-[var(--color-ink-400)] bg-[var(--color-paper-50)]"
             className="mt-3 inline-block"
-            contentClassName="t-hand inline-flex items-center gap-2 px-3 py-1 text-sm text-[var(--color-ink-400)]"
+            contentClassName="t-hand inline-flex items-center gap-2 px-3 py-1 text-base text-[var(--color-ink-400)]"
           >
             <span className="t-data">{selected.size}</span>명이 함께 부담해요
             <button
               type="button"
               onClick={() => setSelected(new Set())}
-              className="t-hand text-[var(--color-ink-300)] hover:text-[var(--color-ink-500)]"
+              className="t-hand text-base text-[var(--color-ink-300)] hover:text-[var(--color-ink-500)]"
             >
               취소
             </button>
@@ -302,6 +384,8 @@ export default function AssignPage() {
               selectedCount={selected.size}
               onItemClick={handleItemClick}
               onDragStart={handleDragStart}
+              onDragMove={handleDragMove}
+              onDropAtPoint={handleDropAtPoint}
               onDragEnd={handleDragEnd}
             />
           )}
@@ -347,7 +431,7 @@ export default function AssignPage() {
             <button
               type="button"
               onClick={() => router.back()}
-              className="t-hand text-[var(--color-ink-300)] hover:text-[var(--color-ink-500)]"
+              className="banner-back-btn"
             >
               ← 이전
             </button>
@@ -448,7 +532,10 @@ function MemberZone({
             <button
               key={m.id}
               type="button"
+              data-member-id={m.id}
               onClick={() => onSelectToggle(m.id)}
+              onPointerEnter={() => onHover(m.id)}
+              onPointerLeave={onUnhover}
               onMouseEnter={() => onHover(m.id)}
               onMouseLeave={onUnhover}
               onDragOver={(e) => {
@@ -478,13 +565,13 @@ function MemberZone({
               />
               <span className="relative flex flex-col items-center gap-1.5 px-3 py-3">
                 <DoodleAvatar name={m.name} size={52} />
-                <span className="t-hand text-[var(--color-ink-500)]">
+                <span className="t-hand text-lg text-[var(--color-ink-500)]">
                   {m.name}
                 </span>
                 <span
-                  className={`t-data text-base text-[var(--color-ink-500)] ${isBumped ? "animate-count-bump" : ""}`}
+                  className={`t-data text-lg text-[var(--color-ink-500)] ${isBumped ? "animate-count-bump" : ""}`}
                 >
-                  ₩{fmt(memberTotal(m.id))}
+                  <RollingCurrency value={memberTotal(m.id)} active={isBumped} />
                 </span>
               </span>
               {isSelected && (
@@ -509,7 +596,7 @@ function MemberZone({
         <div className="pointer-events-none mt-3 flex justify-center">
           <CrayonFrame
             visual="rounded-full border-[2.5px] border-[var(--color-ink-500)] bg-[var(--color-paper-50)] shadow-[3px_3px_0_rgba(24,22,15,0.6)]"
-            contentClassName="t-hand px-4 py-1.5 text-sm"
+            contentClassName="t-hand px-4 py-1.5 text-base"
           >
             {selected.size}명이서 나누기 ✦ 여기에 놓으세요
           </CrayonFrame>
@@ -527,6 +614,8 @@ function ItemZone({
   selectedCount,
   onItemClick,
   onDragStart,
+  onDragMove,
+  onDropAtPoint,
   onDragEnd,
 }: {
   items: Item[];
@@ -534,18 +623,20 @@ function ItemZone({
   selectedCount: number;
   onItemClick: (id: number) => void;
   onDragStart: (id: number) => void;
+  onDragMove: (x: number, y: number) => void;
+  onDropAtPoint: (id: number, x: number, y: number) => void;
   onDragEnd: () => void;
 }) {
   if (items.length === 0) return null;
   return (
     <>
       <div className="mb-3 flex items-center gap-2">
-        <span className="t-hand text-sm text-[var(--color-ink-300)]">
+        <span className="t-hand text-base text-[var(--color-ink-300)]">
           남은 항목 · {items.length}개
         </span>
         <span className="h-[1px] flex-1 bg-[var(--color-ink-200)]/40" />
         {selectedCount === 0 && (
-          <span className="t-hand text-xs text-[var(--color-ink-200)]">
+          <span className="t-hand text-sm text-[var(--color-ink-200)]">
             먼저 사람을 골라 주세요
           </span>
         )}
@@ -561,6 +652,8 @@ function ItemZone({
                 pickable={selectedCount > 0}
                 onClick={() => onItemClick(item.id)}
                 onDragStart={() => onDragStart(item.id)}
+                onDragMove={onDragMove}
+                onDropAtPoint={(x, y) => onDropAtPoint(item.id, x, y)}
                 onDragEnd={onDragEnd}
               />
             </li>
@@ -576,6 +669,8 @@ function ItemCard({
   remaining,
   onClick,
   onDragStart,
+  onDragMove,
+  onDropAtPoint,
   onDragEnd,
 }: {
   item: Item;
@@ -583,21 +678,132 @@ function ItemCard({
   pickable: boolean;
   onClick: () => void;
   onDragStart: () => void;
+  onDragMove: (x: number, y: number) => void;
+  onDropAtPoint: (x: number, y: number) => void;
   onDragEnd: () => void;
 }) {
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    offsetX: number;
+    offsetY: number;
+    width: number;
+    height: number;
+    active: boolean;
+  } | null>(null);
+  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const [dragVisual, setDragVisual] = useState<{
+    x: number;
+    y: number;
+    offsetX: number;
+    offsetY: number;
+    width: number;
+    height: number;
+  } | null>(null);
+
+  const finishDrag = useCallback((x: number, y: number, shouldDrop: boolean) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    if (drag.active && shouldDrop) {
+      onDropAtPoint(x, y);
+    }
+    if (drag.active) {
+      onDragEnd();
+    }
+    dragRef.current = null;
+    lastPointRef.current = null;
+    setDragVisual(null);
+  }, [onDragEnd, onDropAtPoint]);
+
+  useEffect(() => {
+    if (!dragVisual) return;
+
+    const handleRelease = (event: PointerEvent | MouseEvent) => {
+      finishDrag(event.clientX, event.clientY, true);
+    };
+    const handleCancel = () => {
+      const point = lastPointRef.current;
+      finishDrag(point?.x ?? 0, point?.y ?? 0, false);
+    };
+
+    window.addEventListener("pointerup", handleRelease, true);
+    window.addEventListener("mouseup", handleRelease, true);
+    window.addEventListener("pointercancel", handleCancel, true);
+    window.addEventListener("blur", handleCancel, true);
+
+    return () => {
+      window.removeEventListener("pointerup", handleRelease, true);
+      window.removeEventListener("mouseup", handleRelease, true);
+      window.removeEventListener("pointercancel", handleCancel, true);
+      window.removeEventListener("blur", handleCancel, true);
+    };
+  }, [dragVisual, finishDrag]);
+
   return (
     <div
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", String(item.id));
-        onDragStart();
-      }}
-      onDragEnd={onDragEnd}
-      onClick={onClick}
-      className="draggable relative h-full transition-transform hover:-translate-y-0.5"
+      ref={cardRef}
+      className="relative h-full"
+      style={dragVisual ? { height: dragVisual.height } : undefined}
       role="button"
       tabIndex={0}
+      onPointerDown={(e) => {
+        if (e.button !== 0) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        dragRef.current = {
+          pointerId: e.pointerId,
+          startX: e.clientX,
+          startY: e.clientY,
+          offsetX: e.clientX - rect.left,
+          offsetY: e.clientY - rect.top,
+          width: rect.width,
+          height: rect.height,
+          active: false,
+        };
+        e.currentTarget.setPointerCapture(e.pointerId);
+      }}
+      onPointerMove={(e) => {
+        const drag = dragRef.current;
+        if (!drag || drag.pointerId !== e.pointerId) return;
+        const dx = e.clientX - drag.startX;
+        const dy = e.clientY - drag.startY;
+
+        if (!drag.active && Math.hypot(dx, dy) > 5) {
+          drag.active = true;
+          onDragStart();
+        }
+
+        if (!drag.active) return;
+        e.preventDefault();
+        lastPointRef.current = { x: e.clientX, y: e.clientY };
+        setDragVisual({
+          x: e.clientX,
+          y: e.clientY,
+          offsetX: drag.offsetX,
+          offsetY: drag.offsetY,
+          width: drag.width,
+          height: drag.height,
+        });
+        onDragMove(e.clientX, e.clientY);
+      }}
+      onPointerUp={(e) => {
+        const drag = dragRef.current;
+        if (!drag || drag.pointerId !== e.pointerId) return;
+        e.currentTarget.releasePointerCapture(e.pointerId);
+        if (drag.active) {
+          e.preventDefault();
+          finishDrag(e.clientX, e.clientY, true);
+        } else {
+          dragRef.current = null;
+          onClick();
+        }
+      }}
+      onPointerCancel={(e) => {
+        const drag = dragRef.current;
+        if (!drag || drag.pointerId !== e.pointerId) return;
+        finishDrag(e.clientX, e.clientY, false);
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
@@ -605,6 +811,23 @@ function ItemCard({
         }
       }}
     >
+      <div
+        className={`draggable relative h-full transition-transform ${dragVisual ? "cursor-grabbing" : "hover:-translate-y-0.5"}`}
+        style={
+          dragVisual
+            ? {
+                position: "fixed",
+                left: dragVisual.x - dragVisual.offsetX,
+                top: dragVisual.y - dragVisual.offsetY,
+                width: dragVisual.width,
+                height: dragVisual.height,
+                zIndex: 60,
+                pointerEvents: "none",
+                transform: "rotate(-1deg) scale(1.03)",
+              }
+            : undefined
+        }
+      >
       <span
         aria-hidden
         className="pointer-events-none absolute inset-0 rounded-2xl border-[2.5px] border-[var(--color-ink-400)] bg-[var(--color-paper-50)] shadow-[3px_4px_0_rgba(24,22,15,0.55)]"
@@ -612,7 +835,7 @@ function ItemCard({
       />
       <div className="relative flex h-full flex-col gap-1 px-3 py-3">
         <div className="flex items-start justify-between gap-1">
-          <span className="t-data line-clamp-2 text-[var(--color-ink-500)]">
+          <span className="t-data line-clamp-2 text-lg text-[var(--color-ink-500)]">
             {item.name}
           </span>
           {item.totalQty > 1 && (
@@ -622,19 +845,106 @@ function ItemCard({
                 className="pointer-events-none absolute inset-0 rounded-full border-[2px] border-[var(--color-ink-500)] bg-[var(--color-paper-100)]"
                 style={{ filter: "url(#crayonWobbleLight)" }}
               />
-              <span className="relative t-data text-xs text-[var(--color-ink-500)]">
+              <span className="relative t-data text-sm text-[var(--color-ink-500)]">
                 {remaining}
               </span>
             </span>
           )}
         </div>
         <div className="mt-auto pt-2">
-          <span className="t-data text-base text-[var(--color-ink-400)]">
+          <span className="t-data text-lg text-[var(--color-ink-400)]">
             ₩{fmt(item.unitPrice)}
           </span>
         </div>
       </div>
+      </div>
     </div>
+  );
+}
+
+function RollingCurrency({
+  value,
+  active,
+}: {
+  value: number;
+  active?: boolean;
+}) {
+  const previousValueRef = useRef(value);
+  const frameRef = useRef<number | undefined>(undefined);
+  const [displayValue, setDisplayValue] = useState(value);
+  const [diffFrom, setDiffFrom] = useState(fmt(value));
+
+  useEffect(() => {
+    const from = previousValueRef.current;
+    if (from === value) {
+      setDisplayValue(value);
+      return;
+    }
+
+    previousValueRef.current = value;
+    setDiffFrom(fmt(from));
+    if (frameRef.current) cancelAnimationFrame(frameRef.current);
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setDisplayValue(value);
+      return;
+    }
+
+    const startedAt = performance.now();
+    const duration = 540;
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayValue(from + (value - from) * eased);
+      if (progress < 1) {
+        frameRef.current = requestAnimationFrame(tick);
+      } else {
+        setDisplayValue(value);
+      }
+    };
+
+    frameRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
+  }, [value]);
+
+  useEffect(() => {
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
+  }, []);
+
+  const targetText = fmt(value);
+  const displayText = fmt(displayValue);
+  const width = Math.max(diffFrom.length, targetText.length, displayText.length);
+  const previousChars = diffFrom.padStart(width, " ");
+  const targetChars = targetText.padStart(width, " ");
+  const displayChars = displayText.padStart(width, " ").split("");
+
+  return (
+    <span className="rolling-amount" aria-label={`₩${targetText}`}>
+      <span aria-hidden>₩</span>
+      {displayChars.map((char, index) => {
+        if (char === " ") return null;
+        const changed =
+          active &&
+          /\d/.test(targetChars[index]) &&
+          previousChars[index] !== targetChars[index];
+        return (
+          <span
+            key={`${index}-${targetChars[index]}`}
+            aria-hidden
+            className={`rolling-amount__digit ${
+              changed ? "rolling-amount__digit--changed" : ""
+            }`}
+            style={changed ? { animationDelay: `${index * 18}ms` } : undefined}
+          >
+            {char}
+          </span>
+        );
+      })}
+    </span>
   );
 }
 
@@ -655,15 +965,15 @@ function MemberPreview({
       contentClassName="px-4 py-4"
     >
       <div className="mb-3 flex items-center justify-between">
-        <span className="t-hand text-[var(--color-ink-500)]">
-          <span className="text-lg">{member.name}</span>의 항목
+        <span className="t-hand text-lg text-[var(--color-ink-500)]">
+          <span className="text-xl">{member.name}</span>의 항목
         </span>
-        <span className="t-data text-lg text-[var(--color-ink-500)]">
+        <span className="t-data text-xl text-[var(--color-ink-500)]">
           ₩{fmt(total)}
         </span>
       </div>
       {items.length === 0 ? (
-        <p className="t-hand py-3 text-center text-[var(--color-ink-300)]">
+        <p className="t-hand py-3 text-center text-lg text-[var(--color-ink-300)]">
           아직 배분된 항목이 없어요.
         </p>
       ) : (
@@ -671,9 +981,9 @@ function MemberPreview({
           {items.map((it, idx) => (
             <li key={idx} className="flex items-center justify-between py-2">
               <div className="flex items-center gap-2">
-                <span className="t-data text-[var(--color-ink-500)]">{it.name}</span>
+                <span className="t-data text-lg text-[var(--color-ink-500)]">{it.name}</span>
                 {it.units > 1 && (
-                  <span className="t-data text-sm text-[var(--color-ink-300)]">
+                  <span className="t-data text-base text-[var(--color-ink-300)]">
                     × {it.units}
                   </span>
                 )}
@@ -681,7 +991,7 @@ function MemberPreview({
                   <SplitBadge>{it.splitNotes[0]}</SplitBadge>
                 )}
               </div>
-              <span className="t-data text-[var(--color-ink-500)]">
+              <span className="t-data text-lg text-[var(--color-ink-500)]">
                 ₩{fmt(it.amount)}
               </span>
             </li>
@@ -701,7 +1011,7 @@ function SplitBadge({ children }: { children: React.ReactNode }) {
         className="pointer-events-none absolute inset-0 rounded-full border-[1.5px] border-[var(--color-ink-300)]"
         style={{ filter: "url(#crayonWobbleLight)" }}
       />
-      <span className="t-hand relative inline-block px-2 text-xs text-[var(--color-ink-300)]">
+      <span className="t-hand relative inline-block px-2 text-sm text-[var(--color-ink-300)]">
         {children}
       </span>
     </span>

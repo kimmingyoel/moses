@@ -17,7 +17,7 @@ export function CrayonButton({
   className = "",
   ...rest
 }: CrayonButtonProps) {
-  const sizeClass = size === "sm" ? "crayon-btn--small" : size === "lg" ? "px-6 py-3 text-[1.15rem]" : "";
+  const sizeClass = size === "sm" ? "crayon-btn--small" : size === "lg" ? "px-6 py-3 text-[1.24rem]" : "";
   const variantClass =
     variant === "ghost"
       ? "crayon-btn--ghost"

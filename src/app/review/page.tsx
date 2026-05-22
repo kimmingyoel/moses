@@ -52,7 +52,7 @@ export default function ReviewPage() {
       <Sheet>
         {/* Step + header */}
         <div className="mb-3 flex items-center gap-2">
-          <span className="t-data text-sm text-[var(--color-ink-200)]">
+          <span className="t-data text-base text-[var(--color-ink-200)]">
             STEP 3 / 5
           </span>
           <span className="block h-[1px] flex-1 bg-[var(--color-ink-200)]/40" />
@@ -61,7 +61,7 @@ export default function ReviewPage() {
           <h1 className="t-hand text-[2.1rem] leading-tight text-[var(--color-ink-500)] sm:text-[2.4rem]">
             영수증 확인
           </h1>
-          <p className="t-hand mt-2 text-[var(--color-ink-300)]">
+          <p className="t-hand mt-2 text-lg text-[var(--color-ink-300)]">
             잘못 읽힌 항목이 있나요? 칸을 눌러서 바로 고치면 돼요.
           </p>
         </div>
@@ -72,7 +72,7 @@ export default function ReviewPage() {
           contentClassName="px-3 py-4 sm:px-5"
         >
           <div className="mb-3 flex items-center gap-2">
-            <span className="t-hand text-sm text-[var(--color-ink-300)]">
+            <span className="t-hand text-base text-[var(--color-ink-300)]">
               읽힌 항목 · {items.length}개
             </span>
             <span className="h-[1px] flex-1 bg-[var(--color-ink-200)]/40" />
@@ -97,21 +97,23 @@ export default function ReviewPage() {
           )}
 
           {/* Add row */}
-          <button
-            type="button"
-            onClick={add}
-            className="t-hand group mt-3 inline-flex items-center gap-2 text-[var(--color-ink-300)] hover:text-[var(--color-ink-500)]"
-          >
-            <span aria-hidden className="relative grid h-7 w-7 place-items-center">
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-0 rounded-full border-[2.5px] border-[var(--color-ink-400)]"
-                style={{ filter: "url(#crayonWobbleLight)" }}
-              />
-              <span className="relative text-[var(--color-ink-400)]">+</span>
-            </span>
-            <span className="text-lg">항목 추가</span>
-          </button>
+          <div className="mt-4 flex justify-center">
+            <button
+              type="button"
+              onClick={add}
+              className="t-hand group inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[var(--color-ink-300)] transition-colors hover:text-[var(--color-ink-500)]"
+            >
+              <span aria-hidden className="relative grid h-8 w-8 place-items-center">
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 rounded-full border-[2.5px] border-[var(--color-ink-400)] transition-shadow group-hover:shadow-[2px_2px_0_rgba(24,22,15,0.35)]"
+                  style={{ filter: "url(#crayonWobbleLight)" }}
+                />
+                <span className="relative text-xl text-[var(--color-ink-400)]">+</span>
+              </span>
+              <span className="text-xl">항목 추가</span>
+            </button>
+          </div>
         </CrayonFrame>
 
         {/* Total summary */}
@@ -126,7 +128,7 @@ export default function ReviewPage() {
           <CrayonFrame
             visual="rounded-xl border-[2px] border-[var(--color-ink-300)] bg-[var(--color-paper-100)]"
             className="mt-4"
-            contentClassName="t-hand flex items-center gap-2 px-3 py-2 text-sm text-[var(--color-ink-400)]"
+            contentClassName="t-hand flex items-center gap-2 px-3 py-2 text-base text-[var(--color-ink-400)]"
           >
             <DoodleExclaim className="h-5 w-5 shrink-0" tone="ink" />
             <span>비어 있거나 0인 칸을 채워야 다음으로 넘어갈 수 있어요.</span>
@@ -145,7 +147,7 @@ export default function ReviewPage() {
             <button
               type="button"
               onClick={() => router.back()}
-              className="t-hand text-[var(--color-ink-300)] hover:text-[var(--color-ink-500)]"
+              className="banner-back-btn"
             >
               ← 이전
             </button>
@@ -206,29 +208,35 @@ function ItemRow({
       </div>
 
       {/* Bottom: math expression — qty × price = total */}
-      <div className="mt-1.5 flex items-center justify-between gap-1 pl-1 pr-2">
-        <div className="flex items-center gap-1.5">
-          <FieldLabel>수량</FieldLabel>
-          <EditableNumber
-            value={item.quantity}
-            align="center"
-            invalid={qtyMissing}
-            onChange={(v) => onChange({ quantity: v })}
-            suffix="개"
-            width={56}
-          />
-          <span className="t-data text-sm text-[var(--color-ink-200)]">×</span>
-          <FieldLabel>단가</FieldLabel>
-          <EditableNumber
-            value={item.unitPrice}
-            align="right"
-            invalid={priceMissing}
-            onChange={(v) => onChange({ unitPrice: v })}
-            prefix="₩"
-            width={84}
-          />
+      <div className="mt-2 grid gap-2 pl-1 pr-2 sm:grid-cols-[1fr_auto] sm:items-center">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1 sm:flex sm:items-center sm:gap-1.5">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <FieldLabel>수량</FieldLabel>
+            <EditableNumber
+              value={item.quantity}
+              align="center"
+              invalid={qtyMissing}
+              onChange={(v) => onChange({ quantity: v })}
+              suffix="개"
+              width={64}
+            />
+          </div>
+          <span className="hidden t-data text-base text-[var(--color-ink-200)] sm:inline">
+            ×
+          </span>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <FieldLabel>단가</FieldLabel>
+            <EditableNumber
+              value={item.unitPrice}
+              align="right"
+              invalid={priceMissing}
+              onChange={(v) => onChange({ unitPrice: v })}
+              prefix="₩"
+              width={98}
+            />
+          </div>
         </div>
-        <div className="t-data text-base font-semibold text-[var(--color-ink-500)]">
+        <div className="t-data justify-self-end text-lg font-semibold text-[var(--color-ink-500)]">
           ₩{lineTotal.toLocaleString("ko-KR")}
         </div>
       </div>
@@ -238,7 +246,7 @@ function ItemRow({
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="t-hand text-[11px] uppercase tracking-wider text-[var(--color-ink-200)]">
+    <span className="t-hand whitespace-nowrap text-xs uppercase tracking-wider text-[var(--color-ink-200)]">
       {children}
     </span>
   );
@@ -263,29 +271,20 @@ function EditableCell({
 }) {
   const cls =
     family === "hand"
-      ? `t-hand ${large ? "text-lg" : "text-base"}`
-      : `t-data ${large ? "text-lg" : "text-base"}`;
+      ? `t-hand ${large ? "text-xl" : "text-lg"}`
+      : `t-data ${large ? "text-xl" : "text-lg"}`;
   const alignCls =
     align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left";
 
   return (
-    <div className={`relative ${invalid ? "bg-[var(--color-paper-100)]/60 rounded-md" : ""}`}>
+    <div className={`relative overflow-visible ${invalid ? "bg-[var(--color-paper-100)]/60 rounded-md" : ""}`}>
       <input
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         className={`peer w-full bg-transparent px-1 py-1 ${cls} ${alignCls} text-[var(--color-ink-500)] outline-none placeholder:text-[var(--color-ink-200)]`}
       />
-      {/* Crayon underline (visible on focus) */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-[6px] opacity-0 transition-opacity duration-150 peer-focus:opacity-100 peer-hover:opacity-50"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 6' preserveAspectRatio='none'><path d='M2 4 Q 18 1, 32 4 T 62 4 T 92 3 T 118 4' stroke='%232a2a2a' stroke-width='2.2' fill='none' stroke-linecap='round'/></svg>\")",
-          backgroundSize: "100% 100%",
-        }}
-      />
+      <span aria-hidden className="editable-underline" />
       {invalid && (
         <DoodleExclaim
           className="pointer-events-none absolute -right-1 -top-1 h-4 w-4"
@@ -330,7 +329,7 @@ function EditableNumber({
 
   return (
     <div
-      className={`relative ${invalid ? "bg-[var(--color-paper-100)]/60 rounded-md" : ""}`}
+      className={`relative overflow-visible ${invalid ? "bg-[var(--color-paper-100)]/60 rounded-md" : ""}`}
       style={width ? { width } : undefined}
     >
       <input
@@ -345,17 +344,9 @@ function EditableNumber({
         }}
         onChange={(e) => setDraft(e.target.value)}
         inputMode="numeric"
-        className={`peer w-full bg-transparent px-1 py-1 t-data text-base ${alignCls} text-[var(--color-ink-500)] outline-none`}
+        className={`peer w-full bg-transparent px-1 py-1 t-data text-lg ${alignCls} text-[var(--color-ink-500)] outline-none`}
       />
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-[6px] opacity-0 transition-opacity duration-150 peer-focus:opacity-100 peer-hover:opacity-50"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 6' preserveAspectRatio='none'><path d='M2 4 Q 18 1, 32 4 T 62 4 T 92 3 T 118 4' stroke='%232a2a2a' stroke-width='2.2' fill='none' stroke-linecap='round'/></svg>\")",
-          backgroundSize: "100% 100%",
-        }}
-      />
+      <span aria-hidden className="editable-underline" />
       {invalid && (
         <DoodleExclaim
           className="pointer-events-none absolute -right-1 -top-1 h-4 w-4"

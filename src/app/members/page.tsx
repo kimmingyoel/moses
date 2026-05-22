@@ -51,7 +51,7 @@ export default function MembersPage() {
       <Sheet>
         {/* Step indicator */}
         <div className="mb-3 flex items-center gap-2">
-          <span className="t-data text-sm text-[var(--color-ink-200)]">
+          <span className="t-data text-base text-[var(--color-ink-200)]">
             STEP 2 / 5
           </span>
           <span className="block h-[1px] flex-1 bg-[var(--color-ink-200)]/40" />
@@ -62,7 +62,7 @@ export default function MembersPage() {
           <h1 className="t-hand text-[2.1rem] leading-tight text-[var(--color-ink-500)] sm:text-[2.4rem]">
             함께 정산할 사람들
           </h1>
-          <p className="t-hand mt-2 text-[var(--color-ink-300)]">
+          <p className="t-hand mt-2 text-lg text-[var(--color-ink-300)]">
             정산에 참여할 사람의 이름을 적어 주세요. 최대 20명까지요.
           </p>
         </div>
@@ -96,13 +96,13 @@ export default function MembersPage() {
         <div className="mb-4 flex items-center justify-between">
           <span className="t-hand text-[var(--color-ink-300)]">
             지금까지{" "}
-            <span className="t-data text-lg text-[var(--color-ink-500)]">
+            <span className="t-data text-xl text-[var(--color-ink-500)]">
               {members.length}
             </span>
             명
           </span>
           {members.length >= 20 && (
-            <span className="t-hand text-sm text-[var(--color-ink-300)]">
+            <span className="t-hand text-base text-[var(--color-ink-300)]">
               (최대 인원에 도달했어요)
             </span>
           )}
@@ -126,6 +126,7 @@ export default function MembersPage() {
       <OcrBanner
         done={ocrDone}
         canProceed={canProceed}
+        onBack={() => router.back()}
         onNext={() => router.push("/review")}
       />
     </div>
@@ -141,7 +142,7 @@ function MemberCard({ name, onRemove }: { name: string; onRemove: () => void }) 
       className="inline-block"
       contentClassName="inline-flex items-center gap-2 px-4 py-2 pr-3"
     >
-      <span className="t-hand text-lg text-[var(--color-ink-500)]">{name}</span>
+      <span className="t-hand text-xl text-[var(--color-ink-500)]">{name}</span>
       <button
         type="button"
         onClick={onRemove}
@@ -160,7 +161,7 @@ function EmptyMembers() {
       visual="rounded-2xl border-[2.5px] border-dashed border-[var(--color-ink-200)]"
       contentClassName="grid place-items-center px-6 py-8 text-center"
     >
-      <p className="t-hand text-[var(--color-ink-300)]">
+      <p className="t-hand text-lg text-[var(--color-ink-300)]">
         아직 추가된 사람이 없어요.
         <br />
         위에서 이름을 적고 <span className="t-data">추가</span> 버튼을 눌러보세요.
@@ -172,10 +173,12 @@ function EmptyMembers() {
 function OcrBanner({
   done,
   canProceed,
+  onBack,
   onNext,
 }: {
   done: boolean;
   canProceed: boolean;
+  onBack: () => void;
   onNext: () => void;
 }) {
   const visual = done
@@ -190,8 +193,16 @@ function OcrBanner({
           className="pointer-events-auto transition-all duration-300"
           contentClassName="flex items-center gap-3 px-4 py-3 sm:px-5 sm:py-4"
         >
+          <button
+            type="button"
+            onClick={onBack}
+            className="banner-back-btn shrink-0"
+          >
+            ← 이전
+          </button>
+
           {/* Icon */}
-          <div className="shrink-0">
+          <div className="hidden shrink-0 sm:block">
             {done ? (
               <DoodleCheck className="h-9 w-9" tone="ink" />
             ) : (
@@ -202,12 +213,12 @@ function OcrBanner({
           {/* Status text */}
           <div className="flex-1 leading-tight">
             <p
-              className={`t-hand text-base sm:text-lg ${done ? "text-[var(--color-ink-500)]" : "text-[var(--color-ink-300)]"}`}
+              className={`t-hand text-lg sm:text-xl ${done ? "text-[var(--color-ink-500)]" : "text-[var(--color-ink-300)]"}`}
             >
               {done ? "영수증 분석 완료!" : "영수증 분석 중..."}
             </p>
             {!done && (
-              <span className="t-hand inline-flex items-center gap-0.5 text-xs text-[var(--color-ink-200)]">
+              <span className="t-hand inline-flex items-center gap-0.5 text-sm text-[var(--color-ink-200)]">
                 글자를 하나하나 읽고 있어요
                 <span className="dot-1">.</span>
                 <span className="dot-2">.</span>
@@ -215,7 +226,7 @@ function OcrBanner({
               </span>
             )}
             {done && (
-              <span className="t-hand text-xs text-[var(--color-ink-300)]">
+              <span className="t-hand text-sm text-[var(--color-ink-300)]">
                 항목을 확인하러 가볼까요?
               </span>
             )}

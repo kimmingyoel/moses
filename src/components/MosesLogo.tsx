@@ -11,9 +11,6 @@ export function MosesLogo({ size = "lg" }: { size?: Size }) {
   return (
     <h1 className={`t-logo leading-none ${sizeMap[size]} select-none`}>
       <span style={{ display: "inline-block" }}>모세</span>
-      <span className="ml-3 align-middle text-[0.42em] tracking-wide t-hand text-[var(--color-ink-300)]">
-        (Moses)
-      </span>
     </h1>
   );
 }

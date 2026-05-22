@@ -121,7 +121,7 @@ export default function ResultPage() {
 
         {/* Grand total */}
         <div className="mb-7 text-center">
-          <p className="t-hand text-sm text-[var(--color-ink-300)]">총 정산 금액</p>
+          <p className="t-hand text-base text-[var(--color-ink-300)]">총 정산 금액</p>
           <p className="t-data mt-1 text-4xl font-bold text-[var(--color-ink-500)]">
             ₩{fmt(grandTotal)}
           </p>
@@ -144,10 +144,10 @@ export default function ResultPage() {
                   >
                     <DoodleAvatar name={r.name} size={48} />
                     <div className="min-w-0 flex-1">
-                      <p className="t-hand text-lg leading-tight text-[var(--color-ink-500)]">
+                      <p className="t-hand text-xl leading-tight text-[var(--color-ink-500)]">
                         {r.name}
                       </p>
-                      <p className="t-hand text-xs text-[var(--color-ink-300)]">
+                      <p className="t-hand text-sm text-[var(--color-ink-300)]">
                         항목 {r.items.length}개
                       </p>
                     </div>
@@ -163,39 +163,35 @@ export default function ResultPage() {
                   </button>
 
                   {/* Expanded detail */}
-                  <div
-                    className={`grid transition-[grid-template-rows] duration-300 ease-out ${isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
-                  >
-                    <div className="overflow-hidden">
-                      <div className="border-t-[2px] border-dashed border-[var(--color-ink-200)] px-4 py-3">
-                        <ul className="divide-y divide-dashed divide-[var(--color-ink-200)]/60">
-                          {r.items.map((it, idx) => (
-                            <li
-                              key={idx}
-                              className="flex items-center justify-between py-2"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="t-data text-[var(--color-ink-500)]">
-                                  {it.name}
-                                </span>
-                                {it.units > 1 && (
-                                  <span className="t-data text-sm text-[var(--color-ink-300)]">
-                                    × {it.units}
-                                  </span>
-                                )}
-                                {it.splitWith && (
-                                  <SplitBadge>{it.splitWith}명 나눔</SplitBadge>
-                                )}
-                              </div>
-                              <span className="t-data text-[var(--color-ink-500)]">
-                                ₩{fmt(it.amount)}
+                  {isOpen && (
+                    <div className="detail-panel-open border-t-[2px] border-dashed border-[var(--color-ink-200)] px-4 py-3">
+                      <ul className="divide-y divide-dashed divide-[var(--color-ink-200)]/60">
+                        {r.items.map((it, idx) => (
+                          <li
+                            key={idx}
+                            className="flex items-center justify-between gap-3 py-2"
+                          >
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span className="t-data truncate text-lg text-[var(--color-ink-500)]">
+                                {it.name}
                               </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+                              {it.units > 1 && (
+                                <span className="t-data text-base text-[var(--color-ink-300)]">
+                                  × {it.units}
+                                </span>
+                              )}
+                              {it.splitWith && (
+                                <SplitBadge>{it.splitWith}명 나눔</SplitBadge>
+                              )}
+                            </div>
+                            <span className="t-data shrink-0 text-lg text-[var(--color-ink-500)]">
+                              ₩{fmt(it.amount)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                  </div>
+                  )}
                 </CrayonFrame>
               </li>
             );
@@ -231,7 +227,7 @@ export default function ResultPage() {
         </div>
 
         {/* Footnote */}
-        <p className="t-hand mt-6 text-center text-xs text-[var(--color-ink-200)]">
+        <p className="t-hand mt-6 text-center text-sm text-[var(--color-ink-200)]">
           총무가 대표 결제하고, 위 금액을 받아주세요 ☕
         </p>
       </Sheet>
@@ -248,7 +244,7 @@ function SplitBadge({ children }: { children: React.ReactNode }) {
         className="pointer-events-none absolute inset-0 rounded-full border-[1.5px] border-[var(--color-ink-300)]"
         style={{ filter: "url(#crayonWobbleLight)" }}
       />
-      <span className="t-hand relative inline-block px-2 text-xs text-[var(--color-ink-300)]">
+      <span className="t-hand relative inline-block px-2 text-sm text-[var(--color-ink-300)]">
         {children}
       </span>
     </span>
