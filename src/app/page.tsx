@@ -33,7 +33,7 @@ export default function UploadPage() {
         {/* Top-left cluster */}
         <DoodleReceipt
           className="absolute -left-7 -top-5 w-[78px] sm:-left-10 sm:w-[96px]"
-          style={{ transform: "rotate(-12deg)", filter: "url(#crayonWobble)" }}
+          style={{ transform: "rotate(-12deg)" }}
           aria-hidden
         />
         <DoodleCoinSmall
@@ -54,14 +54,14 @@ export default function UploadPage() {
         />
         <DoodleSpeechBubble
           className="absolute right-2 top-[68px] w-[78px] sm:right-6 sm:w-[92px]"
-          style={{ transform: "rotate(-6deg)", filter: "url(#crayonWobble)" }}
+          style={{ transform: "rotate(-6deg)" }}
           aria-hidden
         />
 
         {/* Mid-left */}
         <DoodleCoffee
           className="absolute -left-4 top-[42%] w-[80px] sm:-left-8 sm:w-[100px]"
-          style={{ transform: "rotate(-7deg)", filter: "url(#crayonWobble)" }}
+          style={{ transform: "rotate(-7deg)" }}
           aria-hidden
         />
         <DoodleCoinSmall
@@ -73,31 +73,31 @@ export default function UploadPage() {
         {/* Mid-right */}
         <DoodlePiggyBank
           className="absolute -right-6 top-[40%] w-[100px] sm:-right-10 sm:w-[128px]"
-          style={{ transform: "rotate(8deg)", filter: "url(#crayonWobble)" }}
+          style={{ transform: "rotate(8deg)" }}
           aria-hidden
         />
 
         {/* Bottom-left cluster */}
         <DoodleCalculator
           className="absolute -bottom-6 -left-3 w-[80px] sm:-left-6 sm:w-[100px]"
-          style={{ transform: "rotate(-12deg)", filter: "url(#crayonWobble)" }}
+          style={{ transform: "rotate(-12deg)" }}
           aria-hidden
         />
         <DoodleCoupon
           className="absolute bottom-[16px] left-[78px] w-[80px] sm:bottom-[24px] sm:left-[108px] sm:w-[96px]"
-          style={{ transform: "rotate(-8deg)", filter: "url(#crayonWobble)" }}
+          style={{ transform: "rotate(-8deg)" }}
           aria-hidden
         />
 
         {/* Bottom-right cluster */}
         <DoodleBill
           className="absolute -bottom-1 -right-3 w-[110px] sm:-right-6 sm:w-[130px]"
-          style={{ transform: "rotate(9deg)", filter: "url(#crayonWobble)" }}
+          style={{ transform: "rotate(9deg)" }}
           aria-hidden
         />
         <DoodleSplitters
           className="absolute bottom-[10px] right-[100px] w-[110px] sm:right-[140px] sm:w-[140px]"
-          style={{ transform: "rotate(-3deg)", filter: "url(#crayonWobble)" }}
+          style={{ transform: "rotate(-3deg)" }}
           aria-hidden
         />
         <DoodleSparkle
@@ -106,7 +106,7 @@ export default function UploadPage() {
         />
         <DoodleCoin
           className="absolute bottom-[120px] left-[36px] w-[40px] sm:left-[60px] sm:w-[48px]"
-          style={{ transform: "rotate(8deg)", filter: "url(#crayonWobble)" }}
+          style={{ transform: "rotate(8deg)" }}
           aria-hidden
         />
 
@@ -143,7 +143,7 @@ export default function UploadPage() {
             className={`pointer-events-none absolute inset-0 transition-opacity duration-200 ${dragOver ? "opacity-100" : "opacity-0"}`}
             style={{
               backgroundImage:
-                "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'><rect width='100%25' height='100%25' x='3' y='3' style='width:calc(100%25 - 6px);height:calc(100%25 - 6px);' fill='none' stroke='%232e2b25' stroke-width='4.5' stroke-dasharray='14 8 4 8' stroke-linecap='round' rx='20' ry='20'/></svg>\")",
+                "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'><rect width='100%25' height='100%25' x='3' y='3' style='width:calc(100%25 - 6px);height:calc(100%25 - 6px);' fill='none' stroke='%232a2a2a' stroke-width='4.5' stroke-dasharray='14 8 4 8' stroke-linecap='round' rx='20' ry='20'/></svg>\")",
               backgroundSize: "100% 100%",
               filter: "url(#crayonWobble)",
             }}

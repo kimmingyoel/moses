@@ -112,7 +112,7 @@ export default function ResultPage() {
               textAnchor="middle"
               fontFamily="OnGeurip-Nuka, sans-serif"
               fontSize="24"
-              fill="#18160f"
+              fill="#111111"
             >
               정산 결과
             </text>

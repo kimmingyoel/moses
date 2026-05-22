@@ -282,7 +282,7 @@ function EditableCell({
         className="pointer-events-none absolute inset-x-0 bottom-0 h-[6px] opacity-0 transition-opacity duration-150 peer-focus:opacity-100 peer-hover:opacity-50"
         style={{
           backgroundImage:
-            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 6' preserveAspectRatio='none'><path d='M2 4 Q 18 1, 32 4 T 62 4 T 92 3 T 118 4' stroke='%232e2b25' stroke-width='2.2' fill='none' stroke-linecap='round'/></svg>\")",
+            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 6' preserveAspectRatio='none'><path d='M2 4 Q 18 1, 32 4 T 62 4 T 92 3 T 118 4' stroke='%232a2a2a' stroke-width='2.2' fill='none' stroke-linecap='round'/></svg>\")",
           backgroundSize: "100% 100%",
         }}
       />
@@ -352,7 +352,7 @@ function EditableNumber({
         className="pointer-events-none absolute inset-x-0 bottom-0 h-[6px] opacity-0 transition-opacity duration-150 peer-focus:opacity-100 peer-hover:opacity-50"
         style={{
           backgroundImage:
-            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 6' preserveAspectRatio='none'><path d='M2 4 Q 18 1, 32 4 T 62 4 T 92 3 T 118 4' stroke='%232e2b25' stroke-width='2.2' fill='none' stroke-linecap='round'/></svg>\")",
+            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 6' preserveAspectRatio='none'><path d='M2 4 Q 18 1, 32 4 T 62 4 T 92 3 T 118 4' stroke='%232a2a2a' stroke-width='2.2' fill='none' stroke-linecap='round'/></svg>\")",
           backgroundSize: "100% 100%",
         }}
       />

@@ -33,15 +33,15 @@
   --font-data: "DXTypeB", "Courier New", monospace;
   --font-hand: "OnGeurip-Nuka", system-ui, sans-serif;
 
-  /* Grayscale palette — paper to ink */
-  --color-paper-50: #f6f1e6;   /* warm aged paper */
-  --color-paper-100: #ece4d2;  /* soft cream */
-  --color-paper-200: #ddd2bb;  /* deeper cream */
-  --color-ink-100: #c7bfae;    /* light pencil */
-  --color-ink-200: #8e8678;    /* mid pencil */
-  --color-ink-300: #5b554b;    /* dark pencil */
-  --color-ink-400: #2e2b25;    /* charcoal */
-  --color-ink-500: #18160f;    /* deep black */
+  /* Pure grayscale palette — paper to ink (R = G = B at every step) */
+  --color-paper-50: #f2f2f2;   /* light paper */
+  --color-paper-100: #e3e3e3;  /* paper */
+  --color-paper-200: #cfcfcf;  /* deep paper */
+  --color-ink-100: #bababa;    /* light pencil */
+  --color-ink-200: #858585;    /* mid pencil */
+  --color-ink-300: #555555;    /* dark pencil */
+  --color-ink-400: #2a2a2a;    /* charcoal */
+  --color-ink-500: #111111;    /* deep black */
 }
 
 /* ──────────── Base ──────────── */
@@ -57,11 +57,11 @@ html, body {
 
 body {
   background-image:
-    /* coarse paper grain */
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.18  0 0 0 0 0.16  0 0 0 0 0.13  0 0 0 0.10 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"),
-    /* soft mottled tonal variation */
-    radial-gradient(circle at 18% 14%, rgba(120, 100, 70, 0.10) 0%, transparent 38%),
-    radial-gradient(circle at 82% 78%, rgba(120, 100, 70, 0.09) 0%, transparent 42%),
+    /* coarse paper grain — neutral gray noise */
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.15  0 0 0 0 0.15  0 0 0 0 0.15  0 0 0 0.10 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"),
+    /* soft mottled value variation (no hue) */
+    radial-gradient(circle at 18% 14%, rgba(0, 0, 0, 0.06) 0%, transparent 38%),
+    radial-gradient(circle at 82% 78%, rgba(0, 0, 0, 0.05) 0%, transparent 42%),
     linear-gradient(180deg, var(--color-paper-50) 0%, var(--color-paper-100) 100%);
   background-size: 240px 240px, auto, auto, auto;
   background-attachment: fixed;
@@ -93,39 +93,56 @@ body {
   filter: url(#crayonWobbleLight);
 }
 
-/* Paper sheet — paper grain background.
+/* Paper sheet — neutral grain background.
  * Layout (position/size) is controlled where the class is applied, not here. */
 .sheet {
   background-color: var(--color-paper-50);
   background-image:
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.15  0 0 0 0 0.12  0 0 0 0 0.08  0 0 0 0.07 0'/></filter><rect width='100%25' height='100%25' filter='url(%23p)'/></svg>"),
-    radial-gradient(circle at 20% 8%, rgba(140, 110, 60, 0.06), transparent 50%),
-    radial-gradient(circle at 80% 92%, rgba(140, 110, 60, 0.07), transparent 50%);
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.12  0 0 0 0 0.12  0 0 0 0 0.12  0 0 0 0.07 0'/></filter><rect width='100%25' height='100%25' filter='url(%23p)'/></svg>"),
+    radial-gradient(circle at 20% 8%, rgba(0, 0, 0, 0.05), transparent 50%),
+    radial-gradient(circle at 80% 92%, rgba(0, 0, 0, 0.05), transparent 50%);
 }
 
 /* Sheet edges — rough hand-cut paper feel via clip-path */
 .sheet-edge {
-  --edge-shadow-1: 8px 10px 0 rgba(24, 22, 15, 0.16);
-  --edge-shadow-2: 2px 3px 0 rgba(24, 22, 15, 0.08);
+  --edge-shadow-1: 8px 10px 0 rgba(0, 0, 0, 0.16);
+  --edge-shadow-2: 2px 3px 0 rgba(0, 0, 0, 0.08);
   box-shadow: var(--edge-shadow-1), var(--edge-shadow-2);
 }
 
-/* Crayon box — chunky hand-drawn outline using an inline SVG mask */
+/* Crayon box — draw the effect on ::before so child text stays crisp */
 .crayon-box {
   position: relative;
-  border: 3px solid var(--color-ink-400);
+  isolation: isolate;
   border-radius: 14px;
-  background: var(--color-paper-50);
-  box-shadow: 5px 6px 0 rgba(24, 22, 15, 0.85);
-  filter: url(#crayonWobble);
 }
 
 .crayon-box-soft {
   position: relative;
-  border: 2.5px solid var(--color-ink-300);
+  isolation: isolate;
   border-radius: 12px;
+}
+
+.crayon-box::before,
+.crayon-box-soft::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background: var(--color-paper-50);
-  box-shadow: 3px 4px 0 rgba(24, 22, 15, 0.55);
+  border-radius: inherit;
+}
+
+.crayon-box::before {
+  border: 3px solid var(--color-ink-400);
+  box-shadow: 5px 6px 0 rgba(0, 0, 0, 0.85);
+  filter: url(#crayonWobble);
+}
+
+.crayon-box-soft::before {
+  border: 2.5px solid var(--color-ink-300);
+  box-shadow: 3px 4px 0 rgba(0, 0, 0, 0.55);
   filter: url(#crayonWobbleLight);
 }
 
@@ -140,7 +157,7 @@ body {
     repeating-linear-gradient(
       135deg,
       transparent 0 4px,
-      rgba(24, 22, 15, 0.18) 4px 5px,
+      rgba(0, 0, 0, 0.18) 4px 5px,
       transparent 5px 9px
     );
 }
@@ -150,7 +167,7 @@ body {
     repeating-linear-gradient(
       135deg,
       transparent 0 3px,
-      rgba(24, 22, 15, 0.32) 3px 4.5px,
+      rgba(0, 0, 0, 0.32) 3px 4.5px,
       transparent 4.5px 7px
     );
 }
@@ -184,7 +201,7 @@ body {
   background: var(--color-ink-400);
   border: 3px solid var(--color-ink-500);
   border-radius: inherit;
-  box-shadow: 4px 5px 0 rgba(24, 22, 15, 0.7);
+  box-shadow: 4px 5px 0 rgba(0, 0, 0, 0.7);
   filter: url(#crayonWobble);
   transition: box-shadow 120ms ease, background 120ms ease, border-color 120ms ease;
 }
@@ -193,14 +210,14 @@ body {
   transform: translate(-1px, -2px);
 }
 .crayon-btn:hover:not(:disabled)::before {
-  box-shadow: 6px 7px 0 rgba(24, 22, 15, 0.7);
+  box-shadow: 6px 7px 0 rgba(0, 0, 0, 0.7);
 }
 
 .crayon-btn:active:not(:disabled) {
   transform: translate(2px, 3px);
 }
 .crayon-btn:active:not(:disabled)::before {
-  box-shadow: 2px 2px 0 rgba(24, 22, 15, 0.6);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.6);
 }
 
 .crayon-btn:disabled {
@@ -219,10 +236,10 @@ body {
 .crayon-btn--ghost::before {
   background: transparent;
   border-color: var(--color-ink-400);
-  box-shadow: 3px 4px 0 rgba(24, 22, 15, 0.4);
+  box-shadow: 3px 4px 0 rgba(0, 0, 0, 0.4);
 }
 .crayon-btn--ghost:hover:not(:disabled)::before {
-  background: rgba(24, 22, 15, 0.04);
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .crayon-btn--small {
@@ -231,7 +248,7 @@ body {
 }
 .crayon-btn--small::before {
   border-width: 2.5px;
-  box-shadow: 3px 4px 0 rgba(24, 22, 15, 0.6);
+  box-shadow: 3px 4px 0 rgba(0, 0, 0, 0.6);
 }
 
 /* Hand-drawn text input — wrap input in .crayon-field; the wrapper draws the
@@ -249,15 +266,15 @@ body {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: rgba(255, 252, 244, 0.7);
+  background: rgba(255, 255, 255, 0.7);
   border: 2.5px solid var(--color-ink-400);
   border-radius: inherit;
   filter: url(#crayonWobbleLight);
   transition: background 120ms ease, box-shadow 120ms ease;
 }
 .crayon-field:focus-within::before {
-  background: rgba(255, 252, 244, 0.95);
-  box-shadow: 2px 3px 0 rgba(24, 22, 15, 0.5);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.5);
 }
 
 .crayon-input {
@@ -278,7 +295,7 @@ body {
 
 /* Crayon-textured underline for inline-edit cells */
 .crayon-underline {
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 6' preserveAspectRatio='none'><path d='M2 4 Q 18 1, 32 4 T 62 4 T 92 3 T 118 4' stroke='%232e2b25' stroke-width='2.2' fill='none' stroke-linecap='round'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 6' preserveAspectRatio='none'><path d='M2 4 Q 18 1, 32 4 T 62 4 T 92 3 T 118 4' stroke='%232a2a2a' stroke-width='2.2' fill='none' stroke-linecap='round'/></svg>");
   background-repeat: no-repeat;
   background-size: 100% 6px;
   background-position: bottom center;
@@ -287,7 +304,7 @@ body {
 
 /* Soft dashed crayon border (used for drag-zone reveal) */
 .crayon-dashed {
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'><rect width='100%25' height='100%25' x='0' y='0' fill='none' stroke='%232e2b25' stroke-width='4' stroke-dasharray='14 9 4 9' rx='18' ry='18'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'><rect width='100%25' height='100%25' x='0' y='0' fill='none' stroke='%232a2a2a' stroke-width='4' stroke-dasharray='14 9 4 9' rx='18' ry='18'/></svg>");
   background-repeat: no-repeat;
   background-size: 100% 100%;
   filter: url(#crayonWobble);
