@@ -46,13 +46,19 @@
 
 /* ──────────────── Base ──────────────── */
 
+html {
+  /* Anchors the body's `min-h-screen` to the actual viewport rather than
+   * letting it collapse to its content. Without this the upload/members
+   * pages can't vertically center against the viewport. */
+  height: 100%;
+}
+
 html,
 body {
   background-color: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-hand);
   font-size: 17px;
-  min-height: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
