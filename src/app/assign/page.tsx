@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   Sheet,
@@ -49,7 +57,7 @@ export default function AssignPage() {
   const [redoStack, setRedoStack] = useState<Assignment[][]>([]);
 
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [hoveredMemberId, setHoveredMemberId] = useState<number | null>(null);
+  const [, setHoveredMemberId] = useState<number | null>(null);
   const [previewMemberId, setPreviewMemberId] = useState<number | null>(null);
   const [draggingItemId, setDraggingItemId] = useState<number | null>(null);
   const [dropTargetMemberId, setDropTargetMemberId] = useState<number | null>(null);
@@ -311,7 +319,6 @@ export default function AssignPage() {
         <MemberZone
           members={members}
           selected={selected}
-          hoveredMemberId={hoveredMemberId}
           dropTargetMemberId={dropTargetMemberId}
           bumpedMemberIds={bumpedMemberIds}
           huddleActive={huddleActive}
@@ -457,7 +464,6 @@ function IconButton({
 function MemberZone({
   members,
   selected,
-  hoveredMemberId,
   dropTargetMemberId,
   bumpedMemberIds,
   huddleActive,
@@ -473,7 +479,6 @@ function MemberZone({
 }: {
   members: Member[];
   selected: Set<number>;
-  hoveredMemberId: number | null;
   dropTargetMemberId: number | null;
   bumpedMemberIds: Set<number>;
   huddleActive: boolean;
@@ -487,28 +492,67 @@ function MemberZone({
   onDropOnMember: (itemId: number, memberId: number) => void;
   onDropOnHuddle: (itemId: number) => void;
 }) {
+  const cardRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+  const [huddleOffsets, setHuddleOffsets] = useState<Map<number, number>>(new Map());
+
+  // When a huddle starts, walk the selected cards in DOM order and compute a
+  // translateX that pulls each one toward their shared center. Unselected
+  // cards keep their slot (no flex-justify shuffling).
+  useLayoutEffect(() => {
+    const clear = () => setHuddleOffsets((cur) => (cur.size === 0 ? cur : new Map()));
+    if (!huddleActive) {
+      clear();
+      return;
+    }
+    const positioned = members
+      .filter((m) => selected.has(m.id))
+      .map((m) => {
+        const el = cardRefs.current.get(m.id);
+        if (!el) return null;
+        const rect = el.getBoundingClientRect();
+        return { id: m.id, center: rect.left + rect.width / 2 };
+      })
+      .filter((x): x is { id: number; center: number } => x !== null);
+    if (positioned.length < 2) {
+      clear();
+      return;
+    }
+    const mean =
+      positioned.reduce((sum, p) => sum + p.center, 0) / positioned.length;
+    const next = new Map<number, number>();
+    positioned.forEach(({ id, center }, idx) => {
+      // Small fan offset so stacked cards still read as distinct pieces.
+      const fan = (idx - (positioned.length - 1) / 2) * 14;
+      next.set(id, mean - center + fan);
+    });
+    setHuddleOffsets(next);
+  }, [huddleActive, selected, members]);
+
   return (
     <div className="relative">
-      <div
-        className={`flex flex-wrap gap-3 transition-all duration-300 ${
-          huddleActive ? "justify-center" : ""
-        }`}
-      >
+      <div className="flex flex-wrap gap-3">
         {members.map((m) => {
           const isSelected = selected.has(m.id);
           const isDropTarget = dropTargetMemberId === m.id;
-          const isHovered = hoveredMemberId === m.id;
           const isBumped = bumpedMemberIds.has(m.id);
-          const huddleStyle = huddleActive && isSelected
-            ? { transform: "translateX(0) scale(1.04)" }
-            : huddleActive && !isSelected
-              ? { opacity: 0.35 }
-              : undefined;
-          const showShadow = isSelected || isDropTarget ? "drop" : isHovered ? "soft" : "soft";
+          const offset = huddleOffsets.get(m.id) ?? 0;
+          const huddleStyle: CSSProperties | undefined = huddleActive
+            ? isSelected
+              ? {
+                  transform: `translateX(${offset}px) translateY(-4px) scale(1.05) rotate(${(m.id % 3) - 1}deg)`,
+                  zIndex: 10,
+                }
+              : { opacity: 0.32 }
+            : undefined;
+          const showShadow = isSelected || isDropTarget ? "drop" : "soft";
           return (
             <button
               key={m.id}
               type="button"
+              ref={(el) => {
+                if (el) cardRefs.current.set(m.id, el);
+                else cardRefs.current.delete(m.id);
+              }}
               data-member-id={m.id}
               onClick={() => onSelectToggle(m.id)}
               onPointerEnter={() => onHover(m.id)}
@@ -530,7 +574,7 @@ function MemberZone({
                 }
                 onDragLeaveMember();
               }}
-              className={`group relative w-[112px] transition-all duration-200 sm:w-[128px] ${
+              className={`group relative w-[112px] transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] sm:w-[128px] ${
                 isSelected || isDropTarget ? "-translate-y-1" : ""
               }`}
               style={huddleStyle}

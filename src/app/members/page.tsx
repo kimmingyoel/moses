@@ -11,7 +11,7 @@ import {
   IconClose,
   IconCheck,
   IconPencil,
-  IconSparkle,
+  DoodleSparkle,
 } from "@/components/sketch";
 
 type Member = { id: number; name: string };
@@ -210,15 +210,9 @@ function OcrBanner({
           className="pointer-events-auto transition-all duration-300"
           contentClassName="flex items-center gap-4 px-5 py-4 sm:px-7 sm:py-5"
         >
-          <div className="relative hidden shrink-0 sm:block text-[var(--color-ink-deep)]">
+          <div className="hidden shrink-0 sm:block text-[var(--color-ink-deep)]">
             {done ? (
-              <>
-                <IconCheck className="h-7 w-7" />
-                <IconSparkle
-                  className="pointer-events-none absolute -right-2 -top-2 h-4 w-4 text-[var(--color-ink)]"
-                  aria-hidden
-                />
-              </>
+              <IconCheck className="h-7 w-7" />
             ) : (
               <IconPencil className="h-7 w-7 animate-pencil" />
             )}
@@ -233,6 +227,12 @@ function OcrBanner({
               }`}
             >
               {done ? "영수증 분석 완료!" : "영수증 분석 중..."}
+              {done && (
+                <DoodleSparkle
+                  className="ml-1.5 inline-block h-[14px] w-[14px] translate-y-[-2px] align-middle"
+                  tone="ink"
+                />
+              )}
             </p>
             {!done ? (
               <span className="font-hand inline-flex items-center gap-0.5 text-base text-[var(--color-ink-mute)]">
@@ -242,7 +242,7 @@ function OcrBanner({
                 <span className="dot-3">.</span>
               </span>
             ) : (
-              <span className="font-hand text-base text-[var(--color-ink-soft)]">
+              <span className="font-hand block text-base text-[var(--color-ink-soft)]">
                 항목을 확인하러 가볼까요?
               </span>
             )}

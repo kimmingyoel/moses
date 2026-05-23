@@ -57,12 +57,9 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Subtle paper grain so the white sheets read as paper, not pure CSS. */
-body {
-  background-image:
-    radial-gradient(circle at 20% 14%, rgba(0, 0, 0, 0.02) 0%, transparent 55%),
-    radial-gradient(circle at 80% 86%, rgba(0, 0, 0, 0.025) 0%, transparent 58%);
-}
+/* Single flat paper tone everywhere. We dropped the radial gradients that
+ * used to drift around the viewport — on tall pages they made the top and
+ * the bottom of the page look like different shades of paper. */
 
 /* Smooth route transitions */
 @view-transition {

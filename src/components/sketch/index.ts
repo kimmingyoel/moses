@@ -24,3 +24,14 @@ export {
   IconRedo,
   IconAlert,
 } from "./Icons";
+export {
+  DoodleReceipt,
+  DoodleCoin,
+  DoodleCoinSmall,
+  DoodleCoffee,
+  DoodlePencil,
+  DoodlePiggyBank,
+  DoodleSparkle,
+  DoodleSquiggle,
+  DoodleBurst,
+} from "./Doodles";

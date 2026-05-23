@@ -12,6 +12,7 @@
 .DS_Store
 *.pem
 .claude/
+/design_assets/
 
 # local font assets
 /public/fonts/*

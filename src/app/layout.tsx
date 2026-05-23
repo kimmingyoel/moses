@@ -13,8 +13,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className="min-h-screen">
-        <main className="mx-auto w-full max-w-[760px] px-4 py-8 sm:py-12">
+      <body className="flex min-h-screen flex-col">
+        {/* `flex-1 + justify-center` keeps short pages (upload, members) in
+         * the viewport's vertical center while still letting taller pages
+         * (review, assign, result) scroll naturally from the top. */}
+        <main className="mx-auto flex w-full max-w-[760px] flex-1 flex-col justify-center px-4 py-8 sm:py-12">
           {children}
         </main>
       </body>
