@@ -82,6 +82,18 @@ export default function AssignPage() {
     if (hoverCloseTimerRef.current) clearTimeout(hoverCloseTimerRef.current);
   }, []);
 
+  // Last-shown preview snapshot. We keep it around while the pointer is OFF
+  // a member card so the MemberPreview overlay's height stays anchored — if
+  // it unmounted on hover-out the grid cell would collapse and the rest of
+  // the Sheet would slide around. The snapshot is updated only from the
+  // hover handler's setTimeout (see handleMemberEnter below), never from
+  // an effect, so React 19's set-state-in-effect lint rule stays clean.
+  const [previewSnapshot, setPreviewSnapshot] = useState<{
+    member: Member;
+    items: { name: string; units: number; amount: number; splitNotes: string[] }[];
+    total: number;
+  } | null>(null);
+
   useEffect(() => {
     return () => {
       if (bumpTimerRef.current) clearTimeout(bumpTimerRef.current);
@@ -184,6 +196,35 @@ export default function AssignPage() {
     setPreviewMemberId(null);
   }, [clearPreviewTimers]);
 
+  const memberItemsBreakdown = useCallback(
+    (memberId: number) => {
+      const map = new Map<
+        number,
+        { name: string; units: number; amount: number; splitNotes: string[] }
+      >();
+      for (const a of assignments) {
+        if (!a.memberIds.includes(memberId)) continue;
+        const item = items.find((i) => i.id === a.itemId);
+        if (!item) continue;
+        const share = item.unitPrice / a.memberIds.length;
+        const entry = map.get(a.itemId) ?? {
+          name: item.name,
+          units: 0,
+          amount: 0,
+          splitNotes: [],
+        };
+        entry.units += 1;
+        entry.amount += share;
+        if (a.memberIds.length > 1) {
+          entry.splitNotes.push(`${a.memberIds.length}명 나눔`);
+        }
+        map.set(a.itemId, entry);
+      }
+      return Array.from(map.values());
+    },
+    [assignments, items]
+  );
+
   const handleMemberEnter = useCallback(
     (id: number) => {
       setHoveredMemberId(id);
@@ -192,12 +233,19 @@ export default function AssignPage() {
       }
       if (hoverCloseTimerRef.current) clearTimeout(hoverCloseTimerRef.current);
       if (hoverOpenTimerRef.current) clearTimeout(hoverOpenTimerRef.current);
-      hoverOpenTimerRef.current = window.setTimeout(
-        () => setPreviewMemberId(id),
-        previewMemberId === null ? 80 : 30
-      );
+      hoverOpenTimerRef.current = window.setTimeout(() => {
+        setPreviewMemberId(id);
+        const m = members.find((mem) => mem.id === id);
+        if (m) {
+          setPreviewSnapshot({
+            member: m,
+            items: memberItemsBreakdown(id),
+            total: memberTotal(id),
+          });
+        }
+      }, previewMemberId === null ? 80 : 30);
     },
-    [draggingItemId, previewMemberId]
+    [draggingItemId, previewMemberId, members, memberItemsBreakdown, memberTotal]
   );
 
   const handleMemberLeave = useCallback(() => {
@@ -251,39 +299,9 @@ export default function AssignPage() {
     setDropTargetMemberId(null);
   };
 
-  const memberItemsBreakdown = useCallback(
-    (memberId: number) => {
-      const map = new Map<
-        number,
-        { name: string; units: number; amount: number; splitNotes: string[] }
-      >();
-      for (const a of assignments) {
-        if (!a.memberIds.includes(memberId)) continue;
-        const item = items.find((i) => i.id === a.itemId);
-        if (!item) continue;
-        const share = item.unitPrice / a.memberIds.length;
-        const entry = map.get(a.itemId) ?? {
-          name: item.name,
-          units: 0,
-          amount: 0,
-          splitNotes: [],
-        };
-        entry.units += 1;
-        entry.amount += share;
-        if (a.memberIds.length > 1) {
-          entry.splitNotes.push(`${a.memberIds.length}명 나눔`);
-        }
-        map.set(a.itemId, entry);
-      }
-      return Array.from(map.values());
-    },
-    [assignments, items]
-  );
-
   const previewMember = previewMemberId
     ? members.find((m) => m.id === previewMemberId)
     : null;
-  const previewItems = previewMember ? memberItemsBreakdown(previewMember.id) : [];
 
   const huddleActive = draggingItemId !== null && selected.size > 1;
 
@@ -340,33 +358,48 @@ export default function AssignPage() {
           }}
         />
 
+        {/* Single selection-status pill. It always reserves the same row of
+         * vertical space when at least one member is picked, so flipping
+         * from "함께 부담해요" → "여기에 놓으세요" during a huddle drag
+         * doesn't reflow the Sheet (which used to ripple every other
+         * element in the vertically-centered layout). */}
         {selected.size > 0 && (
           <SketchFrame
             radius={999}
             shadow="none"
             stroke="ink"
             className="mt-3 inline-block"
-            contentClassName="font-hand inline-flex items-center gap-2 px-3 py-1 text-base text-[var(--color-ink)]"
+            contentClassName="font-hand inline-flex items-center gap-2 px-3 py-1 text-base whitespace-nowrap text-[var(--color-ink)]"
           >
-            <span className="font-data">{selected.size}</span>명이 함께 부담해요
-            <button
-              type="button"
-              onClick={() => setSelected(new Set())}
-              className="font-hand text-base text-[var(--color-ink-soft)] hover:text-[var(--color-ink-deep)]"
-            >
-              취소
-            </button>
+            <span className="font-data">{selected.size}</span>
+            {huddleActive ? (
+              <>명이서 나누기 ✦ 여기에 놓으세요</>
+            ) : (
+              <>
+                명이 함께 부담해요
+                <button
+                  type="button"
+                  onClick={() => setSelected(new Set())}
+                  className="font-hand text-base text-[var(--color-ink-soft)] hover:text-[var(--color-ink-deep)]"
+                >
+                  취소
+                </button>
+              </>
+            )}
           </SketchFrame>
         )}
 
-        <div className="mt-7">
-          {previewMember ? (
-            <MemberPreview
-              member={previewMember}
-              items={previewItems}
-              total={memberTotal(previewMember.id)}
-            />
-          ) : (
+        {/* Stack ItemZone and MemberPreview in the same grid cell. The cell
+         * sizes itself to whichever child is taller, so cross-fading between
+         * them on hover doesn't shrink or grow the Sheet (which used to
+         * cascade through the vertically-centered layout above). */}
+        <div className="mt-7 grid">
+          <div
+            className={`col-start-1 row-start-1 transition-opacity duration-200 ${
+              previewMember ? "pointer-events-none opacity-0" : "opacity-100"
+            }`}
+            aria-hidden={!!previewMember}
+          >
             <ItemZone
               items={visibleItems}
               remainingQty={remainingQty}
@@ -377,7 +410,21 @@ export default function AssignPage() {
               onDropAtPoint={handleDropAtPoint}
               onDragEnd={handleDragEnd}
             />
-          )}
+          </div>
+          <div
+            className={`col-start-1 row-start-1 transition-opacity duration-200 ${
+              previewMember ? "opacity-100" : "pointer-events-none opacity-0"
+            }`}
+            aria-hidden={!previewMember}
+          >
+            {previewSnapshot && (
+              <MemberPreview
+                member={previewSnapshot.member}
+                items={previewSnapshot.items}
+                total={previewSnapshot.total}
+              />
+            )}
+          </div>
         </div>
 
         {!allAssigned && visibleItems.length > 0 && (
@@ -617,19 +664,6 @@ function MemberZone({
           );
         })}
       </div>
-
-      {huddleActive && (
-        <div className="pointer-events-none mt-3 flex justify-center">
-          <SketchFrame
-            radius={999}
-            shadow="soft"
-            stroke="ink"
-            contentClassName="font-hand px-4 py-1.5 text-base text-[var(--color-ink)]"
-          >
-            {selected.size}명이서 나누기 ✦ 여기에 놓으세요
-          </SketchFrame>
-        </div>
-      )}
     </div>
   );
 }
