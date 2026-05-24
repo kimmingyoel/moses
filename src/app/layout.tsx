@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "모세 — 영수증 더치페이",
-  description: "영수증 하나면 정산 끝. 모세 — 영수증 기반 더치페이 서비스.",
+  title: "모세",
+  description: "영수증 하나로 정산 끝. 모세 — 영수증 기반 더치페이 서비스.",
 };
 
 export default function RootLayout({

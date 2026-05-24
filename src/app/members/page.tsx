@@ -60,7 +60,7 @@ export default function MembersPage() {
             함께 정산할 사람들
           </h1>
           <p className="font-hand mt-2 text-lg text-[var(--color-ink-soft)]">
-            정산에 참여할 사람의 이름을 적어 주세요. 최대 20명까지요.
+            정산에 참여할 사람의 이름을 적어 주세요. 최대 20명까지 추가할 수 있어요.
           </p>
         </div>
 

@@ -90,7 +90,7 @@ export default function UploadPage() {
         <div className="relative z-10 mb-8 text-center sm:mb-10">
           <MosesLogo size="xl" />
           <p className="font-hand mt-4 text-xl text-[var(--color-ink-soft)] sm:text-2xl">
-            영수증 하나면 정산 끝
+            영수증 하나로 정산 끝
           </p>
         </div>
 
@@ -160,7 +160,7 @@ export default function UploadPage() {
         </div>
 
         <p className="relative z-10 mt-5 text-center font-hand text-base text-[var(--color-ink-mute)]">
-          JPG, PNG, HEIC · 여러 장도 한 번에 OK
+          첨부할 수 있는 확장자: JPG, PNG, HEIC
         </p>
       </Sheet>
     </div>
