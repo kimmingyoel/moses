@@ -11,7 +11,6 @@ import {
   IconClose,
   IconCheck,
   IconPencil,
-  DoodleSparkle,
 } from "@/components/sketch";
 
 type Member = { id: number; name: string };
@@ -210,7 +209,7 @@ function OcrBanner({
           className="pointer-events-auto transition-all duration-300"
           contentClassName="flex items-center gap-4 px-5 py-4 sm:px-7 sm:py-5"
         >
-          <div className="hidden shrink-0 sm:block text-[var(--color-ink-deep)]">
+          <div className="shrink-0 text-[var(--color-ink-deep)]">
             {done ? (
               <IconCheck className="h-7 w-7" />
             ) : (
@@ -223,23 +222,14 @@ function OcrBanner({
               className={`font-hand text-lg sm:text-xl ${
                 done
                   ? "text-[var(--color-ink-deep)]"
-                  : "text-[var(--color-ink-soft)]"
+                  : "animate-loading-shimmer"
               }`}
             >
               {done ? "영수증 분석 완료!" : "영수증 분석 중..."}
-              {done && (
-                <DoodleSparkle
-                  className="ml-1.5 inline-block h-[14px] w-[14px] translate-y-[-2px] align-middle"
-                  tone="ink"
-                />
-              )}
             </p>
             {!done ? (
-              <span className="font-hand inline-flex items-center gap-0.5 text-base text-[var(--color-ink-mute)]">
-                글자를 하나하나 읽고 있어요
-                <span className="dot-1">.</span>
-                <span className="dot-2">.</span>
-                <span className="dot-3">.</span>
+              <span className="font-hand block text-base text-[var(--color-ink-mute)]">
+                모든 품목을 꼼꼼하게 살펴보고 있어요...
               </span>
             ) : (
               <span className="font-hand block text-base text-[var(--color-ink-soft)]">
