@@ -69,35 +69,94 @@ export function SketchRectVisual({
   hideStroke = false,
 }: SketchRectProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const [data, setData] = useState<{ vb: { w: number; h: number }; paths: HandDrawnPaths } | null>(null);
+  // The fallback path is a clean rounded rectangle (zero wobble). It renders
+  // identically on server and client, so the SVG is present in the SSR HTML
+  // — critical for Next.js back-navigation, which restores the cached HTML
+  // without re-running useLayoutEffect / ref callbacks. Once measurement
+  // succeeds we swap in the real wobbly path. Until then the user sees a
+  // calm rounded outline instead of a missing border. The fallback's viewBox
+  // is small (4×4) so preserveAspectRatio="none" stretches it cleanly to any
+  // container size; corners become elliptical but never "crumpled" because
+  // there is no per-segment displacement to amplify.
+  const fallback = useMemo<{ vb: { w: number; h: number }; paths: HandDrawnPaths }>(
+    () => ({
+      vb: { w: 4, h: 4 },
+      paths: buildHandDrawnRect({ width: 4, height: 4, radius: 0, wobble: 0, seed }),
+    }),
+    [seed],
+  );
+  const [data, setData] = useState<{ vb: { w: number; h: number }; paths: HandDrawnPaths }>(fallback);
   const uid = useId().replace(/:/g, "");
   const shadowId = `sk-shadow-${uid}`;
 
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const measure = () => {
-      const rect = el.getBoundingClientRect();
-      if (rect.width < 2 || rect.height < 2) return false;
+    let rafId: number | null = null;
+    let lastSize: { w: number; h: number } | null = null;
+    const apply = (w: number, h: number) => {
+      if (w < 2 || h < 2) return false;
+      // Skip insignificant size changes — hover translate, small
+      // detail-expansion frames, sub-pixel layout drift. Without this filter
+      // we'd rebuild the path on every transform and end up with the
+      // "달그락" jitter the visual was designed to avoid. Threshold: <4px on
+      // both axes AND <8% relative change.
+      if (lastSize) {
+        const dw = Math.abs(w - lastSize.w);
+        const dh = Math.abs(h - lastSize.h);
+        if (
+          dw < 4 &&
+          dh < 4 &&
+          dw / lastSize.w < 0.08 &&
+          dh / lastSize.h < 0.08
+        ) {
+          return true;
+        }
+      }
       const paths = buildHandDrawnRect({
-        width: rect.width,
-        height: rect.height,
+        width: w,
+        height: h,
         radius,
         wobble,
         seed,
       });
-      setData({ vb: { w: rect.width, h: rect.height }, paths });
+      setData({ vb: { w, h }, paths });
+      lastSize = { w, h };
       return true;
     };
-    if (measure()) return;
-    // If the parent isn't sized yet (font loading, etc.), wait for the next
-    // resize. Once we have a real size we stop observing — the SVG stretches
-    // from there.
-    const ro = new ResizeObserver(() => {
-      if (measure()) ro.disconnect();
+    const measure = () => {
+      const rect = el.getBoundingClientRect();
+      return apply(rect.width, rect.height);
+    };
+    // Initial sync measurement. If layout isn't settled (view transitions,
+    // off-screen, font swap), poll up to ~5 s of rAF frames to catch it.
+    if (!measure()) {
+      let attempts = 0;
+      const tick = () => {
+        rafId = null;
+        if (attempts++ > 300) return;
+        if (measure()) return;
+        rafId = requestAnimationFrame(tick);
+      };
+      rafId = requestAnimationFrame(tick);
+    }
+    // Persistent ResizeObserver — re-measures when the parent's size
+    // genuinely changes (async-loaded list items growing the Sheet 3-4×
+    // taller, font swap, etc.). We read the entry's contentRect directly:
+    // during a view-transition Chrome can mask getBoundingClientRect to
+    // 0×0, but RO still delivers the element's real box size. Small jitter
+    // is filtered above so hover/animation are no-ops.
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[entries.length - 1];
+      if (!entry) return;
+      const cr = entry.contentRect;
+      apply(cr.width, cr.height);
     });
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      ro.disconnect();
+    };
   }, [radius, wobble, seed]);
 
   const strokeColor = STROKE[stroke];
