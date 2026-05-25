@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   loadSession,
@@ -30,7 +30,6 @@ const fmt = (n: number) => n.toLocaleString("ko-KR");
 
 export default function ReviewPage() {
   const [items, setItems] = useState<Item[]>([]);
-  const [totalAmount, setTotalAmount] = useState(0);
   const [session, setSession] = useState<SplitSession | null>(null);
   const router = useRouter();
 
@@ -39,7 +38,6 @@ export default function ReviewPage() {
       const stored = loadSession();
       setSession(stored);
       if (!stored?.receipt) return;
-      setTotalAmount(stored.receipt.totalAmount);
       setItems(
         stored.receipt.items.map((item) => ({
           id: item.id,
@@ -66,7 +64,6 @@ export default function ReviewPage() {
       0,
     ) ?? 0;
   const computedTotal = itemSubtotal + adjustmentTotal;
-  const reconciliationDelta = computedTotal - totalAmount;
   const hasReceipt = Boolean(session?.receipt);
   const hasEnoughMembers = (session?.members.length ?? 0) >= 2;
   const canConfirm =
@@ -74,8 +71,7 @@ export default function ReviewPage() {
     hasEnoughMembers &&
     items.length > 0 &&
     !hasInvalid &&
-    totalAmount > 0 &&
-    reconciliationDelta === 0;
+    computedTotal > 0;
 
   const update = (id: string, patch: Partial<Item>) =>
     setItems((list) => list.map((it) => (it.id === id ? { ...it, ...patch } : it)));
@@ -83,18 +79,33 @@ export default function ReviewPage() {
   const remove = (id: string) =>
     setItems((list) => list.filter((it) => it.id !== id));
 
-  const add = () =>
+  const addButtonRef = useRef<HTMLButtonElement | null>(null);
+  const pendingAnchorRef = useRef<number | null>(null);
+
+  const add = () => {
+    pendingAnchorRef.current =
+      addButtonRef.current?.getBoundingClientRect().top ?? null;
     setItems((list) => [
       ...list,
       { id: crypto.randomUUID(), name: "", quantity: 1, unitPrice: 0 },
     ]);
+  };
+
+  useLayoutEffect(() => {
+    if (pendingAnchorRef.current === null || !addButtonRef.current) return;
+    const delta =
+      addButtonRef.current.getBoundingClientRect().top -
+      pendingAnchorRef.current;
+    pendingAnchorRef.current = null;
+    if (delta !== 0) window.scrollBy(0, delta);
+  }, [items.length]);
 
   const confirmReceipt = () => {
     if (!session?.receipt) return;
     const confirmedReceipt = updateReceiptItems(
       session.receipt,
       items,
-      totalAmount,
+      computedTotal,
     );
     if (confirmedReceipt.blockingErrors.length > 0) return;
     saveSession({
@@ -150,21 +161,6 @@ export default function ReviewPage() {
           </SketchFrame>
         )}
 
-        {hasReceipt && !hasInvalid && reconciliationDelta !== 0 && (
-          <SketchFrame
-            radius={14}
-            fill="#fafafa"
-            stroke="soft"
-            className="mb-4"
-            contentClassName="flex items-start gap-2.5 px-4 py-3 font-hand text-base text-[var(--color-ink)]"
-          >
-            <IconAlert className="mt-[3px] h-5 w-5 shrink-0" />
-            <span className="min-w-0 leading-snug">
-              품목 합계와 최종 결제금액이 ₩{fmt(Math.abs(reconciliationDelta))} 차이 나요.
-            </span>
-          </SketchFrame>
-        )}
-
         {!hasReceipt && (
           <SketchFrame
             radius={14}
@@ -213,6 +209,7 @@ export default function ReviewPage() {
 
           <div className="mt-4 flex justify-center">
             <button
+              ref={addButtonRef}
               type="button"
               onClick={add}
               className="group inline-flex items-center gap-2 text-[var(--color-ink-soft)] transition-colors hover:text-[var(--color-ink-deep)]"
@@ -260,14 +257,7 @@ export default function ReviewPage() {
               최종 합계
             </span>
             <div className="font-data money-text text-3xl font-bold text-[var(--color-ink-deep)]">
-              <EditableNumber
-                value={totalAmount}
-                align="right"
-                invalid={totalAmount <= 0 || reconciliationDelta !== 0}
-                onChange={setTotalAmount}
-                prefix="₩"
-                width={150}
-              />
+              ₩{fmt(computedTotal)}
             </div>
           </div>
         </div>

@@ -386,7 +386,7 @@ export default function AssignPage() {
   return (
     <div className="pb-32">
       <Sheet>
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex min-h-9 items-center justify-between gap-2">
           <StepIndicator current={4} className="flex-1" />
           <div className="flex items-center gap-1.5">
             {history.length > 0 && (
@@ -436,47 +436,52 @@ export default function AssignPage() {
           }}
         />
 
-        {/* Single selection-status pill. It always reserves the same row of
-         * vertical space when at least one member is picked, so flipping
-         * from "함께 부담해요" → "여기에 놓으세요" during a huddle drag
-         * doesn't reflow the Sheet (which used to ripple every other
-         * element in the vertically-centered layout). */}
-        {selected.size > 0 && (
-          <SketchFrame
-            radius={999}
-            shadow="none"
-            stroke="ink"
-            className="mt-3 inline-block"
-            contentClassName="font-hand inline-flex items-center gap-2 px-3 py-1 text-base whitespace-nowrap text-[var(--color-ink)]"
-          >
-            <span className="font-data">{selected.size}</span>
-            {huddleActive ? (
-              <>명이서 나누기 ✦ 여기에 놓으세요</>
-            ) : (
-              <>
-                명이 함께 부담해요
-                <button
-                  type="button"
-                  onClick={() => setSelected(new Set())}
-                  className="font-hand text-base text-[var(--color-ink-soft)] hover:text-[var(--color-ink-deep)]"
-                >
-                  취소
-                </button>
-              </>
-            )}
-          </SketchFrame>
-        )}
+        {/* Single selection-status pill. The slot always reserves the same
+         * row of vertical space whether or not a member is picked, so the
+         * pill appearing / flipping from "함께 부담해요" → "여기에 놓으세요"
+         * during a huddle drag doesn't reflow the Sheet (which used to
+         * ripple every other element in the vertically-centered layout). */}
+        <div className="mt-3 flex min-h-9 items-start">
+          {selected.size > 0 && (
+            <SketchFrame
+              radius={999}
+              shadow="none"
+              stroke="ink"
+              className="inline-block"
+              contentClassName="font-hand inline-flex items-center gap-2 px-3 py-1 text-base whitespace-nowrap text-[var(--color-ink)]"
+            >
+              <span className="font-data">{selected.size}</span>
+              {huddleActive ? (
+                <>명이서 나누기 ✦ 여기에 놓으세요</>
+              ) : (
+                <>
+                  명이 함께 부담해요
+                  <button
+                    type="button"
+                    onClick={() => setSelected(new Set())}
+                    className="font-hand text-base text-[var(--color-ink-soft)] hover:text-[var(--color-ink-deep)]"
+                  >
+                    취소
+                  </button>
+                </>
+              )}
+            </SketchFrame>
+          )}
+        </div>
 
-        {/* Stack ItemZone and MemberPreview in the same grid cell. The cell
-         * sizes itself to whichever child is taller, so cross-fading between
-         * them on hover doesn't shrink or grow the Sheet (which used to
-         * cascade through the vertically-centered layout above). */}
+        {/* Stack ItemZone, MemberPreview, and the completion banner in the
+         * same grid cell. The cell sizes itself to whichever child is
+         * tallest, so swapping between them on hover or after the last
+         * item is assigned doesn't shrink or grow the Sheet (which used
+         * to cascade through the vertically-centered layout above). */}
         <div className="mt-7 grid">
           <div
             className={`col-start-1 row-start-1 transition-opacity duration-200 ${
-              previewMember ? "pointer-events-none opacity-0" : "opacity-100"
+              previewMember || allAssigned
+                ? "pointer-events-none opacity-0"
+                : "opacity-100"
             }`}
-            aria-hidden={!!previewMember}
+            aria-hidden={!!previewMember || allAssigned}
           >
             <ItemZone
               items={visibleItems}
@@ -491,9 +496,11 @@ export default function AssignPage() {
           </div>
           <div
             className={`col-start-1 row-start-1 transition-opacity duration-200 ${
-              previewMember ? "opacity-100" : "pointer-events-none opacity-0"
+              previewMember && !allAssigned
+                ? "opacity-100"
+                : "pointer-events-none opacity-0"
             }`}
-            aria-hidden={!previewMember}
+            aria-hidden={!previewMember || allAssigned}
           >
             {previewSnapshot && (
               <MemberPreview
@@ -503,32 +510,37 @@ export default function AssignPage() {
               />
             )}
           </div>
+          <div
+            className={`col-start-1 row-start-1 transition-opacity duration-200 ${
+              allAssigned ? "opacity-100" : "pointer-events-none opacity-0"
+            }`}
+            aria-hidden={!allAssigned}
+          >
+            <SketchFrame
+              radius={20}
+              fill="#fafafa"
+              dashed
+              stroke="ink"
+              contentClassName="flex items-center justify-center gap-2 px-4 py-5 text-center"
+            >
+              <IconSparkle className="h-5 w-5 text-[var(--color-ink)]" />
+              <p className="font-hand text-lg text-[var(--color-ink-deep)]">
+                모든 항목 배분 완료!
+              </p>
+              <IconSparkle className="h-5 w-5 text-[var(--color-ink)]" />
+            </SketchFrame>
+          </div>
         </div>
 
-        {!allAssigned && visibleItems.length > 0 && (
-          <div className="mt-6 flex justify-center">
+        {/* Reserve the row so the distribute-all button vanishing after the
+         * last assignment doesn't shift everything above it. */}
+        <div className="mt-6 flex min-h-11 justify-center">
+          {!allAssigned && visibleItems.length > 0 && (
             <SketchButton variant="ghost" onClick={distributeAll}>
               <IconSparkle className="h-4 w-4" /> 전체 균등 배분
             </SketchButton>
-          </div>
-        )}
-
-        {allAssigned && (
-          <SketchFrame
-            radius={20}
-            fill="#fafafa"
-            dashed
-            stroke="ink"
-            className="mt-6"
-            contentClassName="flex items-center justify-center gap-2 px-4 py-5 text-center"
-          >
-            <IconSparkle className="h-5 w-5 text-[var(--color-ink)]" />
-            <p className="font-hand text-lg text-[var(--color-ink-deep)]">
-              모든 항목 배분 완료!
-            </p>
-            <IconSparkle className="h-5 w-5 text-[var(--color-ink)]" />
-          </SketchFrame>
-        )}
+          )}
+        </div>
       </Sheet>
 
       {/* Bottom action bar */}

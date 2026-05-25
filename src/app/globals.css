@@ -143,22 +143,31 @@ body {
 }
 
 /* ─── Expandable detail (result page) ─── */
-/* max-height pattern is friendlier to Safari and avoids the width re-flow
- * that grid-template-rows: 0fr → 1fr triggers during the animation. */
-.detail-collapse {
-  max-height: 0;
-  opacity: 0;
+/* The max-height is set from JS to the actual scroll height so the easing
+ * curve animates over the full duration. The line-item children fade in
+ * with a small stagger for a noticeably "unrolling" feel. */
+.expand-panel {
   overflow: hidden;
   transform: translateZ(0);
   contain: layout paint;
   transition:
-    max-height 280ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 180ms ease;
+    max-height 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 220ms ease;
 }
 
-.detail-collapse--open {
-  max-height: 1400px;
-  opacity: 1;
+@keyframes expand-item-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.expand-item-enter {
+  animation: expand-item-fade-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* ─── Icon "nudge" animation (used for upload icon) ─── */

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { calculateSettlement, formatSettlementClipboard } from "@/lib/receipt";
 import { loadSession } from "@/lib/session";
@@ -204,12 +204,7 @@ export default function ResultPage() {
                     </span>
                   </button>
 
-                  <div
-                    className={`detail-collapse ${
-                      isOpen ? "detail-collapse--open" : ""
-                    }`}
-                    aria-hidden={!isOpen}
-                  >
+                  <ExpandPanel open={isOpen}>
                     <div className="px-4 pb-3">
                       {/* Divider sits inside the padding so it never reaches
                           the outer hand-drawn stroke. */}
@@ -218,7 +213,14 @@ export default function ResultPage() {
                         {r.items.map((it, idx) => (
                           <li
                             key={idx}
-                            className="flex items-center justify-between gap-3 py-2"
+                            className={`flex items-center justify-between gap-3 py-2 ${
+                              isOpen ? "expand-item-enter" : ""
+                            }`}
+                            style={
+                              isOpen
+                                ? { animationDelay: `${idx * 40}ms` }
+                                : undefined
+                            }
                           >
                             <div className="flex min-w-0 items-center gap-2">
                               <span className="font-data truncate text-lg text-[var(--color-ink-deep)]">
@@ -240,7 +242,7 @@ export default function ResultPage() {
                         ))}
                       </ul>
                     </div>
-                  </div>
+                  </ExpandPanel>
                 </SketchFrame>
               </li>
             );
@@ -268,6 +270,41 @@ export default function ResultPage() {
           총무가 대표 결제하고, 위 금액을 받아주세요 ☕
         </p>
       </Sheet>
+    </div>
+  );
+}
+
+function ExpandPanel({
+  open,
+  children,
+}: {
+  open: boolean;
+  children: React.ReactNode;
+}) {
+  const innerRef = useRef<HTMLDivElement | null>(null);
+  const [contentHeight, setContentHeight] = useState(0);
+
+  useLayoutEffect(() => {
+    const node = innerRef.current;
+    if (!node) return;
+    const measure = () => setContentHeight(node.scrollHeight);
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      className="expand-panel"
+      style={{
+        maxHeight: open ? contentHeight : 0,
+        opacity: open ? 1 : 0,
+      }}
+      aria-hidden={!open}
+    >
+      <div ref={innerRef}>{children}</div>
     </div>
   );
 }
