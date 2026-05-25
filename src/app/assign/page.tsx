@@ -642,11 +642,14 @@ function MemberZone({
   onDropOnHuddle: (itemId: string) => void;
 }) {
   const cardRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
-  const [huddleOffsets, setHuddleOffsets] = useState<Map<string, number>>(new Map());
+  const [huddleOffsets, setHuddleOffsets] = useState<Map<string, { x: number; y: number }>>(
+    new Map(),
+  );
 
-  // When a huddle starts, walk the selected cards in DOM order and compute a
-  // translateX that pulls each one toward their shared center. Unselected
-  // cards keep their slot (no flex-justify shuffling).
+  // When a huddle starts, walk the selected cards in DOM order and compute
+  // translate offsets that pull each one toward their shared center — both
+  // horizontally AND vertically, so cards on different rows still stack on
+  // the same spot. Unselected cards keep their slot (no flex-justify shuffling).
   useLayoutEffect(() => {
     const clear = () => setHuddleOffsets((cur) => (cur.size === 0 ? cur : new Map()));
     if (!huddleActive) {
@@ -659,20 +662,28 @@ function MemberZone({
         const el = cardRefs.current.get(m.id);
         if (!el) return null;
         const rect = el.getBoundingClientRect();
-        return { id: m.id, center: rect.left + rect.width / 2 };
+        return {
+          id: m.id,
+          centerX: rect.left + rect.width / 2,
+          centerY: rect.top + rect.height / 2,
+        };
       })
-      .filter((x): x is { id: string; center: number } => x !== null);
+      .filter(
+        (x): x is { id: string; centerX: number; centerY: number } => x !== null,
+      );
     if (positioned.length < 2) {
       clear();
       return;
     }
-    const mean =
-      positioned.reduce((sum, p) => sum + p.center, 0) / positioned.length;
-    const next = new Map<string, number>();
-    positioned.forEach(({ id, center }, idx) => {
+    const meanX =
+      positioned.reduce((sum, p) => sum + p.centerX, 0) / positioned.length;
+    const meanY =
+      positioned.reduce((sum, p) => sum + p.centerY, 0) / positioned.length;
+    const next = new Map<string, { x: number; y: number }>();
+    positioned.forEach(({ id, centerX, centerY }, idx) => {
       // Small fan offset so stacked cards still read as distinct pieces.
       const fan = (idx - (positioned.length - 1) / 2) * 14;
-      next.set(id, mean - center + fan);
+      next.set(id, { x: meanX - centerX + fan, y: meanY - centerY });
     });
     setHuddleOffsets(next);
   }, [huddleActive, selected, members]);
@@ -684,11 +695,11 @@ function MemberZone({
           const isSelected = selected.has(m.id);
           const isDropTarget = dropTargetMemberId === m.id;
           const isBumped = bumpedMemberIds.has(m.id);
-          const offset = huddleOffsets.get(m.id) ?? 0;
+          const offset = huddleOffsets.get(m.id) ?? { x: 0, y: 0 };
           const huddleStyle: CSSProperties | undefined = huddleActive
             ? isSelected
               ? {
-                  transform: `translateX(${offset}px) translateY(-4px) scale(1.05) rotate(${(members.findIndex((member) => member.id === m.id) % 3) - 1}deg)`,
+                  transform: `translate(${offset.x}px, ${offset.y - 4}px) scale(1.05) rotate(${(members.findIndex((member) => member.id === m.id) % 3) - 1}deg)`,
                   zIndex: 10,
                 }
               : { opacity: 0.32 }
