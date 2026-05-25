@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { calculateSettlement, formatSettlementClipboard } from "@/lib/receipt";
+import { loadSession } from "@/lib/session";
 import {
   Sheet,
   SketchFrame,
@@ -28,7 +30,7 @@ type Result = {
   items: ResultItem[];
 };
 
-const results: Result[] = [
+const seedResults: Result[] = [
   {
     id: 1,
     name: "지은",
@@ -70,11 +72,51 @@ const fmt = (n: number) => Math.round(n).toLocaleString("ko-KR");
 export default function ResultPage() {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [copied, setCopied] = useState(false);
+  const [results, setResults] = useState<Result[]>(seedResults);
   const router = useRouter();
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const session = loadSession();
+      const receipt = session?.confirmedReceipt ?? session?.receipt;
+      if (!session || !receipt || session.assignments.length === 0) return;
+      const settlement = calculateSettlement(
+        receipt,
+        session.members,
+        session.assignments,
+      );
+      if (settlement.blockingErrors.length > 0) return;
+      setResults(
+        settlement.members.map((member, index) => ({
+          id: index + 1,
+          name: member.memberName,
+          total: member.finalAmount,
+          items: [
+            ...member.items.map((item) => ({
+              name: item.name,
+              units: 1,
+              amount: item.amount,
+              splitWith: item.sharedWith > 1 ? item.sharedWith : undefined,
+            })),
+            ...(member.adjustmentTotal !== 0
+              ? [
+                  {
+                    name: "할인/수수료 배분",
+                    units: 1,
+                    amount: member.adjustmentTotal,
+                  },
+                ]
+              : []),
+          ],
+        })),
+      );
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const grandTotal = useMemo(
     () => results.reduce((sum, r) => sum + r.total, 0),
-    []
+    [results]
   );
 
   const toggle = (id: number) =>
@@ -87,14 +129,21 @@ export default function ResultPage() {
 
   const copyToClipboard = async () => {
     const lines = [
-      "🧾 모세 정산 결과",
-      "──────────",
-      ...results.map((r) => `${r.name}: ₩${fmt(r.total)}`),
-      "──────────",
-      `총합: ₩${fmt(grandTotal)}`,
+      formatSettlementClipboard({
+        members: results.map((result) => ({
+          memberId: String(result.id),
+          memberName: result.name,
+          grossItemTotal: result.total,
+          adjustmentTotal: 0,
+          finalAmount: result.total,
+          items: [],
+        })),
+        grandTotal,
+        blockingErrors: [],
+      }),
     ];
     try {
-      await navigator.clipboard.writeText(lines.join("\n"));
+      await navigator.clipboard.writeText(lines.join(""));
     } catch {
       /* ignore — UI demo */
     }

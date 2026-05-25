@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useRef } from "react";
 import { useRouter } from "next/navigation";
+import { createSession, loadSession, saveSession } from "@/lib/session";
+import type { ReceiptDraft } from "@/lib/receipt";
 import {
   Sheet,
   MosesLogo,
@@ -21,9 +24,58 @@ import {
 
 export default function UploadPage() {
   const [dragOver, setDragOver] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
 
-  const start = () => router.push("/members");
+  const start = () => inputRef.current?.click();
+
+  const extractReceipt = async (file: File) => {
+    setError(null);
+    setUploading(true);
+    const session = saveSession({
+      ...createSession(),
+      status: "extracting",
+      uploadFileName: file.name,
+    });
+    router.push("/members");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("/api/receipts/extract", {
+        method: "POST",
+        body: formData,
+      });
+      const payload = (await response.json()) as {
+        draft?: ReceiptDraft;
+        error?: string;
+      };
+      if (!response.ok || !payload.draft) {
+        throw new Error(payload.error ?? "영수증 분석에 실패했어요.");
+      }
+      saveSession({
+        ...(loadSession() ?? session),
+        status: "needs_review",
+        receipt: payload.draft,
+        confirmedReceipt: null,
+        assignments: [],
+      });
+    } catch (reason) {
+      const message =
+        reason instanceof Error ? reason.message : "영수증 분석에 실패했어요.";
+      saveSession({
+        ...(loadSession() ?? session),
+        status: "extraction_failed",
+        errorMessage: message,
+      });
+      setError(message);
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  };
 
   return (
     <div className="relative">
@@ -109,9 +161,20 @@ export default function UploadPage() {
           onDrop={(e) => {
             e.preventDefault();
             setDragOver(false);
-            start();
+            const file = e.dataTransfer.files.item(0);
+            if (file) void extractReceipt(file);
           }}
         >
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="sr-only"
+            onChange={(e) => {
+              const file = e.currentTarget.files?.item(0);
+              if (file) void extractReceipt(file);
+            }}
+          />
           {/* Resting state — barely-there fill, no border. Fades out on drag. */}
           <div
             className={`pointer-events-none absolute inset-0 transition-opacity duration-200 ${
@@ -151,16 +214,31 @@ export default function UploadPage() {
               strokeWidth={2.4}
             />
             <p className="font-hand text-center text-xl text-[var(--color-ink-soft)] sm:text-2xl">
-              {dragOver ? "놓으면 바로 시작!" : "여기에 영수증을 올려주세요"}
+              {uploading
+                ? "영수증 분석 중..."
+                : dragOver
+                  ? "놓으면 바로 시작!"
+                  : "여기에 영수증을 올려주세요"}
             </p>
-            <SketchButton variant="secondary" size="sm" onClick={start} className="mt-1">
-              파일 선택
+            <SketchButton
+              variant="secondary"
+              size="sm"
+              onClick={start}
+              disabled={uploading}
+              className="mt-1"
+            >
+              {uploading ? "분석 중..." : "파일 선택"}
             </SketchButton>
           </div>
         </div>
 
+        {error && (
+          <p className="relative z-10 mx-auto mt-4 max-w-[460px] text-center font-hand text-base text-[var(--color-ink)]">
+            {error}
+          </p>
+        )}
         <p className="relative z-10 mt-5 text-center font-hand text-base text-[var(--color-ink-mute)]">
-          첨부할 수 있는 확장자: JPG, PNG, HEIC
+          첨부할 수 있는 확장자: JPG, PNG, WEBP, GIF
         </p>
       </Sheet>
     </div>

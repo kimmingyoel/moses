@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ReceiptExtraction",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "merchantName",
+    "purchasedAt",
+    "currency",
+    "items",
+    "adjustments",
+    "subtotal",
+    "totalAmount",
+    "imageQuality",
+    "warnings"
+  ],
+  "properties": {
+    "merchantName": { "type": "string" },
+    "purchasedAt": { "type": "string" },
+    "currency": {
+      "type": "string",
+      "enum": ["KRW", "JPY", "USD", "EUR", "UNKNOWN"]
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "quantity",
+          "baseUnitPrice",
+          "unitPrice",
+          "totalPrice",
+          "options",
+          "confidence",
+          "rawText"
+        ],
+        "properties": {
+          "name": { "type": "string" },
+          "quantity": { "type": "integer" },
+          "baseUnitPrice": { "type": "integer" },
+          "unitPrice": { "type": "integer" },
+          "totalPrice": { "type": "integer" },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "quantity",
+                "unitPriceDelta",
+                "totalPriceDelta",
+                "confidence",
+                "rawText"
+              ],
+              "properties": {
+                "name": { "type": "string" },
+                "quantity": { "type": "integer" },
+                "unitPriceDelta": { "type": "integer" },
+                "totalPriceDelta": { "type": "integer" },
+                "confidence": { "type": "number" },
+                "rawText": { "type": "string" }
+              }
+            }
+          },
+          "confidence": { "type": "number" },
+          "rawText": { "type": "string" }
+        }
+      }
+    },
+    "adjustments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "amount", "confidence", "rawText"],
+        "properties": {
+          "name": { "type": "string" },
+          "amount": { "type": "integer" },
+          "confidence": { "type": "number" },
+          "rawText": { "type": "string" }
+        }
+      }
+    },
+    "subtotal": { "type": "integer" },
+    "totalAmount": { "type": "integer" },
+    "imageQuality": {
+      "type": "string",
+      "enum": ["clear", "cropped", "blurry", "rotated", "low_light", "unknown"]
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

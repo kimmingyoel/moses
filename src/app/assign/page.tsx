@@ -10,6 +10,8 @@ import {
   type CSSProperties,
 } from "react";
 import { useRouter } from "next/navigation";
+import { createAssignableUnits } from "@/lib/receipt";
+import { loadSession, saveSession, type SplitSession } from "@/lib/session";
 import {
   Sheet,
   SketchFrame,
@@ -26,49 +28,64 @@ import {
 
 /* ──────────────── Types & seed data ──────────────── */
 
-type Member = { id: number; name: string };
-type Item = { id: number; name: string; unitPrice: number; totalQty: number };
-type Assignment = { id: number; itemId: number; memberIds: number[] };
+type Member = { id: string; name: string };
+type Item = {
+  id: string;
+  name: string;
+  unitPrice: number;
+  totalQty: number;
+  unitIds: string[];
+};
+type Assignment = {
+  id: string;
+  itemId: string;
+  itemUnitId: string;
+  memberIds: string[];
+};
 
 const seedMembers: Member[] = [
-  { id: 1, name: "지은" },
-  { id: 2, name: "민호" },
-  { id: 3, name: "수아" },
+  { id: "member_1", name: "지은" },
+  { id: "member_2", name: "민호" },
+  { id: "member_3", name: "수아" },
 ];
 
 const seedItems: Item[] = [
-  { id: 1, name: "아메리카노", unitPrice: 4500, totalQty: 2 },
-  { id: 2, name: "카페라떼", unitPrice: 5000, totalQty: 1 },
-  { id: 3, name: "치즈케이크", unitPrice: 7500, totalQty: 1 },
-  { id: 4, name: "샌드위치", unitPrice: 6800, totalQty: 2 },
+  { id: "item_1", name: "아메리카노", unitPrice: 4500, totalQty: 2, unitIds: ["item_1_unit_1", "item_1_unit_2"] },
+  { id: "item_2", name: "카페라떼", unitPrice: 5000, totalQty: 1, unitIds: ["item_2_unit_1"] },
+  { id: "item_3", name: "치즈케이크", unitPrice: 7500, totalQty: 1, unitIds: ["item_3_unit_1"] },
+  { id: "item_4", name: "샌드위치", unitPrice: 6800, totalQty: 2, unitIds: ["item_4_unit_1", "item_4_unit_2"] },
 ];
 
 const fmt = (n: number) => Math.round(n).toLocaleString("ko-KR");
+
+const itemsSeed = (id: string) =>
+  Array.from(id).reduce((sum, char) => sum + char.charCodeAt(0), 0);
 
 /* ──────────────── Page ──────────────── */
 
 export default function AssignPage() {
   const router = useRouter();
-  const [members] = useState<Member[]>(seedMembers);
-  const [items] = useState<Item[]>(seedItems);
+  const [session, setSession] = useState<SplitSession | null>(null);
+  const [members, setMembers] = useState<Member[]>(seedMembers);
+  const [items, setItems] = useState<Item[]>(seedItems);
 
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [history, setHistory] = useState<Assignment[][]>([]);
   const [redoStack, setRedoStack] = useState<Assignment[][]>([]);
 
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [, setHoveredMemberId] = useState<number | null>(null);
-  const [previewMemberId, setPreviewMemberId] = useState<number | null>(null);
-  const [draggingItemId, setDraggingItemId] = useState<number | null>(null);
-  const [dropTargetMemberId, setDropTargetMemberId] = useState<number | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [, setHoveredMemberId] = useState<string | null>(null);
+  const [previewMemberId, setPreviewMemberId] = useState<string | null>(null);
+  const [draggingItemId, setDraggingItemId] = useState<string | null>(null);
+  const [dropTargetMemberId, setDropTargetMemberId] = useState<string | null>(null);
 
-  const [bumpedMemberIds, setBumpedMemberIds] = useState<Set<number>>(new Set());
+  const [bumpedMemberIds, setBumpedMemberIds] = useState<Set<string>>(new Set());
   const bumpTimerRef = useRef<number | undefined>(undefined);
   const hoverOpenTimerRef = useRef<number | undefined>(undefined);
   const hoverCloseTimerRef = useRef<number | undefined>(undefined);
   const suppressPreviewUntilRef = useRef(0);
 
-  const triggerBump = useCallback((ids: number[]) => {
+  const triggerBump = useCallback((ids: string[]) => {
     setBumpedMemberIds(new Set(ids));
     if (bumpTimerRef.current) clearTimeout(bumpTimerRef.current);
     bumpTimerRef.current = window.setTimeout(
@@ -95,14 +112,36 @@ export default function AssignPage() {
   } | null>(null);
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const stored = loadSession();
+      setSession(stored);
+      if (stored?.members.length) setMembers(stored.members);
+      const receipt = stored?.confirmedReceipt ?? stored?.receipt;
+      if (receipt) {
+        const assignable = createAssignableUnits(receipt.items);
+        setItems(
+          receipt.items.map((item) => ({
+            id: item.id,
+            name: item.name,
+            unitPrice: item.totalPrice / item.quantity,
+            totalQty: item.quantity,
+            unitIds: assignable.units
+              .filter((unit) => unit.itemId === item.id)
+              .map((unit) => unit.id),
+          })),
+        );
+        setAssignments([]);
+      }
+    }, 0);
     return () => {
+      window.clearTimeout(timer);
       if (bumpTimerRef.current) clearTimeout(bumpTimerRef.current);
       clearPreviewTimers();
     };
   }, [clearPreviewTimers]);
 
   const remainingQty = useCallback(
-    (itemId: number) => {
+    (itemId: string) => {
       const used = assignments.filter((a) => a.itemId === itemId).length;
       const item = items.find((i) => i.id === itemId);
       return item ? item.totalQty - used : 0;
@@ -111,7 +150,7 @@ export default function AssignPage() {
   );
 
   const memberTotal = useCallback(
-    (memberId: number) => {
+    (memberId: string) => {
       let total = 0;
       for (const a of assignments) {
         if (!a.memberIds.includes(memberId)) continue;
@@ -136,13 +175,27 @@ export default function AssignPage() {
     setRedoStack([]);
   };
 
-  const performAssign = (itemId: number, memberIds: number[]) => {
+  const performAssign = (itemId: string, memberIds: string[]) => {
     if (memberIds.length === 0) return;
     if (remainingQty(itemId) <= 0) return;
+    const item = items.find((candidate) => candidate.id === itemId);
+    if (!item) return;
+    const usedUnitIds = new Set(
+      assignments
+        .filter((assignment) => assignment.itemId === itemId)
+        .map((assignment) => assignment.itemUnitId),
+    );
+    const itemUnitId = item.unitIds.find((id) => !usedUnitIds.has(id));
+    if (!itemUnitId) return;
     pushHistory(assignments);
     setAssignments((cur) => [
       ...cur,
-      { id: Date.now() + Math.random(), itemId, memberIds: [...memberIds] },
+      {
+        id: crypto.randomUUID(),
+        itemId,
+        itemUnitId,
+        memberIds: [...memberIds],
+      },
     ]);
     triggerBump(memberIds);
     setSelected(new Set());
@@ -152,12 +205,16 @@ export default function AssignPage() {
     pushHistory(assignments);
     const allMemberIds = members.map((m) => m.id);
     const next: Assignment[] = [];
-    let id = Date.now();
     for (const item of items) {
       const used = assignments.filter((a) => a.itemId === item.id).length;
       const rem = item.totalQty - used;
       for (let i = 0; i < rem; i++) {
-        next.push({ id: id++, itemId: item.id, memberIds: allMemberIds });
+        next.push({
+          id: crypto.randomUUID(),
+          itemId: item.id,
+          itemUnitId: item.unitIds[used + i],
+          memberIds: allMemberIds,
+        });
       }
     }
     setAssignments((cur) => [...cur, ...next]);
@@ -181,7 +238,7 @@ export default function AssignPage() {
     triggerBump(members.map((m) => m.id));
   };
 
-  const toggleSelect = (id: number) => {
+  const toggleSelect = (id: string) => {
     setSelected((s) => {
       const next = new Set(s);
       if (next.has(id)) next.delete(id);
@@ -197,9 +254,9 @@ export default function AssignPage() {
   }, [clearPreviewTimers]);
 
   const memberItemsBreakdown = useCallback(
-    (memberId: number) => {
+    (memberId: string) => {
       const map = new Map<
-        number,
+        string,
         { name: string; units: number; amount: number; splitNotes: string[] }
       >();
       for (const a of assignments) {
@@ -226,7 +283,7 @@ export default function AssignPage() {
   );
 
   const handleMemberEnter = useCallback(
-    (id: number) => {
+    (id: string) => {
       setHoveredMemberId(id);
       if (draggingItemId !== null || Date.now() < suppressPreviewUntilRef.current) {
         return;
@@ -258,7 +315,7 @@ export default function AssignPage() {
     );
   }, []);
 
-  const handleItemClick = (itemId: number) => {
+  const handleItemClick = (itemId: string) => {
     if (selected.size === 0) return;
     performAssign(itemId, Array.from(selected));
   };
@@ -267,10 +324,10 @@ export default function AssignPage() {
     const node = document.elementFromPoint(x, y);
     const memberNode = node?.closest<HTMLElement>("[data-member-id]");
     const id = memberNode?.dataset.memberId;
-    return id ? Number(id) : null;
+    return id ?? null;
   }, []);
 
-  const handleDragStart = (itemId: number) => {
+  const handleDragStart = (itemId: string) => {
     clearPreviewTimers();
     setPreviewMemberId(null);
     setDraggingItemId(itemId);
@@ -280,7 +337,7 @@ export default function AssignPage() {
     setDropTargetMemberId(findMemberAtPoint(x, y));
   };
 
-  const handleDropAtPoint = (itemId: number, x: number, y: number) => {
+  const handleDropAtPoint = (itemId: string, x: number, y: number) => {
     const memberId = findMemberAtPoint(x, y);
     if (memberId !== null) {
       if (selected.size > 1) {
@@ -471,7 +528,19 @@ export default function AssignPage() {
               이전
             </button>
             <SketchButton
-              onClick={() => router.push("/result")}
+              onClick={() => {
+                if (session) {
+                  saveSession({
+                    ...session,
+                    status: "settled",
+                    assignments: assignments.map((assignment) => ({
+                      itemUnitId: assignment.itemUnitId,
+                      memberIds: assignment.memberIds,
+                    })),
+                  });
+                }
+                router.push("/result");
+              }}
               disabled={!allAssigned}
             >
               정산 완료
@@ -525,22 +594,22 @@ function MemberZone({
   onDropOnHuddle,
 }: {
   members: Member[];
-  selected: Set<number>;
-  dropTargetMemberId: number | null;
-  bumpedMemberIds: Set<number>;
+  selected: Set<string>;
+  dropTargetMemberId: string | null;
+  bumpedMemberIds: Set<string>;
   huddleActive: boolean;
-  draggingItemId: number | null;
-  memberTotal: (id: number) => number;
-  onSelectToggle: (id: number) => void;
-  onHover: (id: number) => void;
+  draggingItemId: string | null;
+  memberTotal: (id: string) => number;
+  onSelectToggle: (id: string) => void;
+  onHover: (id: string) => void;
   onUnhover: () => void;
-  onDragOverMember: (id: number) => void;
+  onDragOverMember: (id: string) => void;
   onDragLeaveMember: () => void;
-  onDropOnMember: (itemId: number, memberId: number) => void;
-  onDropOnHuddle: (itemId: number) => void;
+  onDropOnMember: (itemId: string, memberId: string) => void;
+  onDropOnHuddle: (itemId: string) => void;
 }) {
-  const cardRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
-  const [huddleOffsets, setHuddleOffsets] = useState<Map<number, number>>(new Map());
+  const cardRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const [huddleOffsets, setHuddleOffsets] = useState<Map<string, number>>(new Map());
 
   // When a huddle starts, walk the selected cards in DOM order and compute a
   // translateX that pulls each one toward their shared center. Unselected
@@ -559,14 +628,14 @@ function MemberZone({
         const rect = el.getBoundingClientRect();
         return { id: m.id, center: rect.left + rect.width / 2 };
       })
-      .filter((x): x is { id: number; center: number } => x !== null);
+      .filter((x): x is { id: string; center: number } => x !== null);
     if (positioned.length < 2) {
       clear();
       return;
     }
     const mean =
       positioned.reduce((sum, p) => sum + p.center, 0) / positioned.length;
-    const next = new Map<number, number>();
+    const next = new Map<string, number>();
     positioned.forEach(({ id, center }, idx) => {
       // Small fan offset so stacked cards still read as distinct pieces.
       const fan = (idx - (positioned.length - 1) / 2) * 14;
@@ -586,7 +655,7 @@ function MemberZone({
           const huddleStyle: CSSProperties | undefined = huddleActive
             ? isSelected
               ? {
-                  transform: `translateX(${offset}px) translateY(-4px) scale(1.05) rotate(${(m.id % 3) - 1}deg)`,
+                  transform: `translateX(${offset}px) translateY(-4px) scale(1.05) rotate(${(members.findIndex((member) => member.id === m.id) % 3) - 1}deg)`,
                   zIndex: 10,
                 }
               : { opacity: 0.32 }
@@ -633,7 +702,7 @@ function MemberZone({
                 shadow={showShadow}
                 wobble={0.55}
                 strokeWidth={isSelected || isDropTarget ? 2.6 : 2.2}
-                seed={m.id * 7}
+                seed={(members.findIndex((member) => member.id === m.id) + 1) * 7}
               />
               <span className="relative flex flex-col items-center gap-1.5 px-3 py-3">
                 <Avatar name={m.name} size={48} />
@@ -681,12 +750,12 @@ function ItemZone({
   onDragEnd,
 }: {
   items: Item[];
-  remainingQty: (id: number) => number;
+  remainingQty: (id: string) => number;
   selectedCount: number;
-  onItemClick: (id: number) => void;
-  onDragStart: (id: number) => void;
+  onItemClick: (id: string) => void;
+  onDragStart: (id: string) => void;
   onDragMove: (x: number, y: number) => void;
-  onDropAtPoint: (id: number, x: number, y: number) => void;
+  onDropAtPoint: (id: string, x: number, y: number) => void;
   onDragEnd: () => void;
 }) {
   if (items.length === 0) return null;
@@ -897,7 +966,7 @@ function ItemCard({
           stroke="ink"
           shadow="soft"
           wobble={0.5}
-          seed={item.id * 13}
+          seed={(itemsSeed(item.id) + 1) * 13}
         />
         <div className="relative flex h-full flex-col gap-1 px-4 py-3.5">
           <div className="flex items-start justify-between gap-2">

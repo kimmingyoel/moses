@@ -1,7 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  loadSession,
+  saveSession,
+  updateReceiptItems,
+  type SplitSession,
+} from "@/lib/session";
 import {
   Sheet,
   SketchFrame,
@@ -14,24 +20,42 @@ import {
 } from "@/components/sketch";
 
 type Item = {
-  id: number;
+  id: string;
   name: string;
   quantity: number;
   unitPrice: number;
 };
 
 const seedItems: Item[] = [
-  { id: 1, name: "아메리카노", quantity: 2, unitPrice: 4500 },
-  { id: 2, name: "카페라떼", quantity: 1, unitPrice: 5000 },
-  { id: 3, name: "치즈케이크", quantity: 1, unitPrice: 7500 },
-  { id: 4, name: "샌드위치", quantity: 2, unitPrice: 6800 },
+  { id: "item_1", name: "아메리카노", quantity: 2, unitPrice: 4500 },
+  { id: "item_2", name: "카페라떼", quantity: 1, unitPrice: 5000 },
+  { id: "item_3", name: "치즈케이크", quantity: 1, unitPrice: 7500 },
+  { id: "item_4", name: "샌드위치", quantity: 2, unitPrice: 6800 },
 ];
 
 const fmt = (n: number) => n.toLocaleString("ko-KR");
 
 export default function ReviewPage() {
   const [items, setItems] = useState<Item[]>(seedItems);
+  const [session, setSession] = useState<SplitSession | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const stored = loadSession();
+      setSession(stored);
+      if (!stored?.receipt) return;
+      setItems(
+        stored.receipt.items.map((item) => ({
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        })),
+      );
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const total = useMemo(
     () => items.reduce((acc, it) => acc + it.quantity * it.unitPrice, 0),
@@ -41,18 +65,45 @@ export default function ReviewPage() {
   const hasInvalid = items.some(
     (it) => !it.name.trim() || it.quantity <= 0 || it.unitPrice <= 0
   );
+  const adjustmentTotal =
+    session?.receipt?.adjustments.reduce(
+      (sum, adjustment) => sum + adjustment.amount,
+      0,
+    ) ?? 0;
+  const finalTotal = total + adjustmentTotal;
+  const canConfirm =
+    Boolean(session?.receipt) &&
+    items.length > 0 &&
+    !hasInvalid &&
+    finalTotal > 0;
 
-  const update = (id: number, patch: Partial<Item>) =>
+  const update = (id: string, patch: Partial<Item>) =>
     setItems((list) => list.map((it) => (it.id === id ? { ...it, ...patch } : it)));
 
-  const remove = (id: number) =>
+  const remove = (id: string) =>
     setItems((list) => list.filter((it) => it.id !== id));
 
   const add = () =>
     setItems((list) => [
       ...list,
-      { id: Date.now(), name: "", quantity: 1, unitPrice: 0 },
+      { id: crypto.randomUUID(), name: "", quantity: 1, unitPrice: 0 },
     ]);
+
+  const confirmReceipt = () => {
+    if (!session?.receipt) return;
+    const confirmedReceipt = updateReceiptItems(
+      session.receipt,
+      items,
+      finalTotal,
+    );
+    saveSession({
+      ...session,
+      status: "assigning",
+      confirmedReceipt,
+      assignments: [],
+    });
+    router.push("/assign");
+  };
 
   return (
     <div className="pb-32">
@@ -79,6 +130,21 @@ export default function ReviewPage() {
             <IconAlert className="mt-[3px] h-5 w-5 shrink-0" />
             <span className="min-w-0 leading-snug">
               비어 있거나 0인 칸을 채워야 다음으로 넘어갈 수 있어요.
+            </span>
+          </SketchFrame>
+        )}
+
+        {!session?.receipt && (
+          <SketchFrame
+            radius={14}
+            fill="#fafafa"
+            stroke="soft"
+            className="mb-4"
+            contentClassName="flex items-start gap-2.5 px-4 py-3 font-hand text-base text-[var(--color-ink)]"
+          >
+            <IconAlert className="mt-[3px] h-5 w-5 shrink-0" />
+            <span className="min-w-0 leading-snug">
+              분석된 영수증이 없어요. 처음 화면에서 파일을 먼저 선택해 주세요.
             </span>
           </SketchFrame>
         )}
@@ -133,10 +199,24 @@ export default function ReviewPage() {
         </SketchFrame>
 
         {/* Total */}
+        {session?.receipt && session.receipt.adjustments.length > 0 && (
+          <div className="mt-4 space-y-1 border-t-2 border-dashed border-[var(--color-ink-line)] pt-3">
+            {session.receipt.adjustments.map((adjustment) => (
+              <div
+                key={adjustment.id}
+                className="flex items-center justify-between font-data text-base text-[var(--color-ink-soft)]"
+              >
+                <span>{adjustment.name}</span>
+                <span>₩{fmt(adjustment.amount)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="mt-6 flex items-end justify-between border-t-2 border-dashed border-[var(--color-ink-soft)] pt-4">
-          <span className="font-hand text-lg text-[var(--color-ink)]">합계</span>
+          <span className="font-hand text-lg text-[var(--color-ink)]">최종 합계</span>
           <span className="font-data money-text text-3xl font-bold text-[var(--color-ink-deep)]">
-            ₩{fmt(total)}
+            ₩{fmt(finalTotal)}
           </span>
         </div>
       </Sheet>
@@ -159,8 +239,8 @@ export default function ReviewPage() {
               이전
             </button>
             <SketchButton
-              onClick={() => router.push("/assign")}
-              disabled={items.length === 0 || hasInvalid}
+              onClick={confirmReceipt}
+              disabled={!canConfirm}
             >
               확인
             </SketchButton>

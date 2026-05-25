@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { loadSession, saveSession } from "@/lib/session";
 import {
   Sheet,
   SketchFrame,
@@ -13,42 +14,60 @@ import {
   IconPencil,
 } from "@/components/sketch";
 
-type Member = { id: number; name: string };
+type Member = { id: string; name: string };
 
 const seedMembers: Member[] = [
-  { id: 1, name: "지은" },
-  { id: 2, name: "민호" },
-  { id: 3, name: "수아" },
+  { id: "member_self", name: "나" },
 ];
 
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>(seedMembers);
   const [value, setValue] = useState("");
-  const [ocrDone, setOcrDone] = useState(false);
+  const [hasReceipt, setHasReceipt] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractionError, setExtractionError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const submitAfterCompositionRef = useRef(false);
   const router = useRouter();
 
   useEffect(() => {
-    const t = setTimeout(() => setOcrDone(true), 3800);
-    return () => clearTimeout(t);
+    const syncFromSession = () => {
+      const session = loadSession();
+      if (!session) return;
+      setHasReceipt(Boolean(session.receipt));
+      setIsExtracting(session.status === "extracting");
+      setExtractionError(session.errorMessage ?? null);
+      if (session.members.length > 0) setMembers(session.members);
+    };
+    const timer = window.setTimeout(syncFromSession, 0);
+    const interval = window.setInterval(syncFromSession, 700);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearInterval(interval);
+    };
   }, []);
+
+  useEffect(() => {
+    const session = loadSession();
+    if (!session) return;
+    saveSession({ ...session, members });
+  }, [members]);
 
   const addMember = (rawName = value) => {
     const name = rawName.trim();
     if (!name) return;
     if (members.length >= 20) return;
     setMembers((m) =>
-      m.length >= 20 ? m : [...m, { id: Date.now(), name }],
+      m.length >= 20 ? m : [...m, { id: crypto.randomUUID(), name }],
     );
     setValue("");
     inputRef.current?.focus();
   };
 
-  const removeMember = (id: number) =>
+  const removeMember = (id: string) =>
     setMembers((m) => m.filter((x) => x.id !== id));
 
-  const canProceed = ocrDone && members.length >= 2;
+  const canProceed = hasReceipt && members.length >= 2;
 
   return (
     <div className="pb-32">
@@ -139,8 +158,10 @@ export default function MembersPage() {
 
       {/* Bottom OCR banner */}
       <OcrBanner
-        done={ocrDone}
+        done={hasReceipt}
+        extracting={isExtracting}
         canProceed={canProceed}
+        error={extractionError}
         onNext={() => router.push("/review")}
       />
     </div>
@@ -192,11 +213,15 @@ function EmptyMembers() {
 
 function OcrBanner({
   done,
+  extracting,
   canProceed,
+  error,
   onNext,
 }: {
   done: boolean;
+  extracting: boolean;
   canProceed: boolean;
+  error: string | null;
   onNext: () => void;
 }) {
   return (
@@ -210,8 +235,8 @@ function OcrBanner({
           contentClassName="flex items-center gap-4 px-5 py-4 sm:px-7 sm:py-5"
         >
           <div className="shrink-0 text-[var(--color-ink-deep)]">
-            {done ? (
-              <IconCheck className="h-7 w-7" />
+              {done ? (
+                <IconCheck className="h-7 w-7" />
             ) : (
               <IconPencil className="h-7 w-7 animate-pencil" />
             )}
@@ -220,16 +245,28 @@ function OcrBanner({
           <div className="min-w-0 flex-1 leading-tight">
             <p
               className={`font-hand text-lg sm:text-xl ${
-                done
+                done || !extracting
                   ? "text-[var(--color-ink-deep)]"
                   : "animate-loading-shimmer"
               }`}
             >
-              {done ? "영수증 분석 완료!" : "영수증 분석 중..."}
+              {done
+                ? "영수증 분석 완료!"
+                : extracting
+                  ? "영수증 분석 중..."
+                  : "영수증을 먼저 올려주세요"}
             </p>
-            {!done ? (
+            {error ? (
+              <span className="font-hand block text-base text-[var(--color-ink)]">
+                {error}
+              </span>
+            ) : extracting ? (
               <span className="font-hand block text-base text-[var(--color-ink-mute)]">
                 모든 품목을 꼼꼼하게 살펴보고 있어요...
+              </span>
+            ) : !done ? (
+              <span className="font-hand block text-base text-[var(--color-ink-mute)]">
+                먼저 영수증 파일을 선택해 주세요.
               </span>
             ) : (
               <span className="font-hand block text-base text-[var(--color-ink-soft)]">
@@ -243,7 +280,7 @@ function OcrBanner({
             disabled={!canProceed}
             className="shrink-0"
           >
-            {done ? "다음" : "분석 중..."}
+            {done ? "다음" : extracting ? "분석 중..." : "대기 중"}
           </SketchButton>
         </SketchFrame>
       </div>
