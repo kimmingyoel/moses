@@ -26,17 +26,11 @@ type Item = {
   unitPrice: number;
 };
 
-const seedItems: Item[] = [
-  { id: "item_1", name: "아메리카노", quantity: 2, unitPrice: 4500 },
-  { id: "item_2", name: "카페라떼", quantity: 1, unitPrice: 5000 },
-  { id: "item_3", name: "치즈케이크", quantity: 1, unitPrice: 7500 },
-  { id: "item_4", name: "샌드위치", quantity: 2, unitPrice: 6800 },
-];
-
 const fmt = (n: number) => n.toLocaleString("ko-KR");
 
 export default function ReviewPage() {
-  const [items, setItems] = useState<Item[]>(seedItems);
+  const [items, setItems] = useState<Item[]>([]);
+  const [totalAmount, setTotalAmount] = useState(0);
   const [session, setSession] = useState<SplitSession | null>(null);
   const router = useRouter();
 
@@ -45,6 +39,7 @@ export default function ReviewPage() {
       const stored = loadSession();
       setSession(stored);
       if (!stored?.receipt) return;
+      setTotalAmount(stored.receipt.totalAmount);
       setItems(
         stored.receipt.items.map((item) => ({
           id: item.id,
@@ -57,7 +52,7 @@ export default function ReviewPage() {
     return () => window.clearTimeout(timer);
   }, []);
 
-  const total = useMemo(
+  const itemSubtotal = useMemo(
     () => items.reduce((acc, it) => acc + it.quantity * it.unitPrice, 0),
     [items]
   );
@@ -70,12 +65,17 @@ export default function ReviewPage() {
       (sum, adjustment) => sum + adjustment.amount,
       0,
     ) ?? 0;
-  const finalTotal = total + adjustmentTotal;
+  const computedTotal = itemSubtotal + adjustmentTotal;
+  const reconciliationDelta = computedTotal - totalAmount;
+  const hasReceipt = Boolean(session?.receipt);
+  const hasEnoughMembers = (session?.members.length ?? 0) >= 2;
   const canConfirm =
-    Boolean(session?.receipt) &&
+    hasReceipt &&
+    hasEnoughMembers &&
     items.length > 0 &&
     !hasInvalid &&
-    finalTotal > 0;
+    totalAmount > 0 &&
+    reconciliationDelta === 0;
 
   const update = (id: string, patch: Partial<Item>) =>
     setItems((list) => list.map((it) => (it.id === id ? { ...it, ...patch } : it)));
@@ -94,8 +94,9 @@ export default function ReviewPage() {
     const confirmedReceipt = updateReceiptItems(
       session.receipt,
       items,
-      finalTotal,
+      totalAmount,
     );
+    if (confirmedReceipt.blockingErrors.length > 0) return;
     saveSession({
       ...session,
       status: "assigning",
@@ -134,7 +135,37 @@ export default function ReviewPage() {
           </SketchFrame>
         )}
 
-        {!session?.receipt && (
+        {hasReceipt && !hasEnoughMembers && (
+          <SketchFrame
+            radius={14}
+            fill="#fafafa"
+            stroke="soft"
+            className="mb-4"
+            contentClassName="flex items-start gap-2.5 px-4 py-3 font-hand text-base text-[var(--color-ink)]"
+          >
+            <IconAlert className="mt-[3px] h-5 w-5 shrink-0" />
+            <span className="min-w-0 leading-snug">
+              두 명 이상 있어야 정산을 시작할 수 있어요.
+            </span>
+          </SketchFrame>
+        )}
+
+        {hasReceipt && !hasInvalid && reconciliationDelta !== 0 && (
+          <SketchFrame
+            radius={14}
+            fill="#fafafa"
+            stroke="soft"
+            className="mb-4"
+            contentClassName="flex items-start gap-2.5 px-4 py-3 font-hand text-base text-[var(--color-ink)]"
+          >
+            <IconAlert className="mt-[3px] h-5 w-5 shrink-0" />
+            <span className="min-w-0 leading-snug">
+              품목 합계와 최종 결제금액이 ₩{fmt(Math.abs(reconciliationDelta))} 차이 나요.
+            </span>
+          </SketchFrame>
+        )}
+
+        {!hasReceipt && (
           <SketchFrame
             radius={14}
             fill="#fafafa"
@@ -213,11 +244,32 @@ export default function ReviewPage() {
           </div>
         )}
 
-        <div className="mt-6 flex items-end justify-between border-t-2 border-dashed border-[var(--color-ink-soft)] pt-4">
-          <span className="font-hand text-lg text-[var(--color-ink)]">최종 합계</span>
-          <span className="font-data money-text text-3xl font-bold text-[var(--color-ink-deep)]">
-            ₩{fmt(finalTotal)}
-          </span>
+        <div className="mt-5 space-y-2 border-t-2 border-dashed border-[var(--color-ink-soft)] pt-4">
+          <div className="flex items-center justify-between font-data text-base text-[var(--color-ink-soft)]">
+            <span>품목 합계</span>
+            <span>₩{fmt(itemSubtotal)}</span>
+          </div>
+          {adjustmentTotal !== 0 && (
+            <div className="flex items-center justify-between font-data text-base text-[var(--color-ink-soft)]">
+              <span>할인/수수료</span>
+              <span>₩{fmt(adjustmentTotal)}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-4 pt-1">
+            <span className="font-hand text-lg text-[var(--color-ink)]">
+              최종 합계
+            </span>
+            <div className="font-data money-text text-3xl font-bold text-[var(--color-ink-deep)]">
+              <EditableNumber
+                value={totalAmount}
+                align="right"
+                invalid={totalAmount <= 0 || reconciliationDelta !== 0}
+                onChange={setTotalAmount}
+                prefix="₩"
+                width={150}
+              />
+            </div>
+          </div>
         </div>
       </Sheet>
 

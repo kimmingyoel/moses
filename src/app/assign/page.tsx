@@ -43,19 +43,6 @@ type Assignment = {
   memberIds: string[];
 };
 
-const seedMembers: Member[] = [
-  { id: "member_1", name: "지은" },
-  { id: "member_2", name: "민호" },
-  { id: "member_3", name: "수아" },
-];
-
-const seedItems: Item[] = [
-  { id: "item_1", name: "아메리카노", unitPrice: 4500, totalQty: 2, unitIds: ["item_1_unit_1", "item_1_unit_2"] },
-  { id: "item_2", name: "카페라떼", unitPrice: 5000, totalQty: 1, unitIds: ["item_2_unit_1"] },
-  { id: "item_3", name: "치즈케이크", unitPrice: 7500, totalQty: 1, unitIds: ["item_3_unit_1"] },
-  { id: "item_4", name: "샌드위치", unitPrice: 6800, totalQty: 2, unitIds: ["item_4_unit_1", "item_4_unit_2"] },
-];
-
 const fmt = (n: number) => Math.round(n).toLocaleString("ko-KR");
 
 const itemsSeed = (id: string) =>
@@ -66,8 +53,9 @@ const itemsSeed = (id: string) =>
 export default function AssignPage() {
   const router = useRouter();
   const [session, setSession] = useState<SplitSession | null>(null);
-  const [members, setMembers] = useState<Member[]>(seedMembers);
-  const [items, setItems] = useState<Item[]>(seedItems);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [items, setItems] = useState<Item[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [history, setHistory] = useState<Assignment[][]>([]);
@@ -114,31 +102,64 @@ export default function AssignPage() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const stored = loadSession();
-      setSession(stored);
-      if (stored?.members.length) setMembers(stored.members);
-      const receipt = stored?.confirmedReceipt ?? stored?.receipt;
-      if (receipt) {
-        const assignable = createAssignableUnits(receipt.items);
-        setItems(
-          receipt.items.map((item) => ({
-            id: item.id,
-            name: item.name,
-            unitPrice: item.totalPrice / item.quantity,
-            totalQty: item.quantity,
-            unitIds: assignable.units
-              .filter((unit) => unit.itemId === item.id)
-              .map((unit) => unit.id),
-          })),
-        );
-        setAssignments([]);
+      setLoaded(true);
+      if (!stored) {
+        router.replace("/");
+        return;
       }
+      if (!stored.confirmedReceipt) {
+        router.replace(stored.receipt ? "/review" : "/");
+        return;
+      }
+      if (stored.members.length < 2) {
+        router.replace("/members");
+        return;
+      }
+
+      const assignable = createAssignableUnits(stored.confirmedReceipt.items);
+      if (
+        stored.confirmedReceipt.blockingErrors.length > 0 ||
+        assignable.blockingErrors.length > 0
+      ) {
+        router.replace("/review");
+        return;
+      }
+
+      const unitById = new Map(assignable.units.map((unit) => [unit.id, unit]));
+      setSession(stored);
+      setMembers(stored.members);
+      setItems(
+        stored.confirmedReceipt.items.map((item) => ({
+          id: item.id,
+          name: item.name,
+          unitPrice: item.totalPrice / item.quantity,
+          totalQty: item.quantity,
+          unitIds: assignable.units
+            .filter((unit) => unit.itemId === item.id)
+            .map((unit) => unit.id),
+        })),
+      );
+      setAssignments(
+        stored.assignments
+          .map((assignment) => {
+            const unit = unitById.get(assignment.itemUnitId);
+            if (!unit) return null;
+            return {
+              id: crypto.randomUUID(),
+              itemId: unit.itemId,
+              itemUnitId: assignment.itemUnitId,
+              memberIds: assignment.memberIds,
+            };
+          })
+          .filter((assignment): assignment is Assignment => assignment !== null),
+      );
     }, 0);
     return () => {
       window.clearTimeout(timer);
       if (bumpTimerRef.current) clearTimeout(bumpTimerRef.current);
       clearPreviewTimers();
     };
-  }, [clearPreviewTimers]);
+  }, [clearPreviewTimers, router]);
 
   const remainingQty = useCallback(
     (itemId: string) => {
@@ -168,7 +189,7 @@ export default function AssignPage() {
     [items, remainingQty]
   );
 
-  const allAssigned = visibleItems.length === 0;
+  const allAssigned = loaded && items.length > 0 && visibleItems.length === 0;
 
   const pushHistory = (prev: Assignment[]) => {
     setHistory((h) => [prev, ...h].slice(0, 50));

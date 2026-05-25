@@ -70,7 +70,8 @@ export type BlockingErrorCode =
   | "no_items"
   | "member_count_invalid"
   | "unassignable_fractional_units"
-  | "unassigned_item_units";
+  | "unassigned_item_units"
+  | "invalid_assignment";
 
 export type ReviewFlag = {
   code: ReviewFlagCode;
@@ -362,28 +363,14 @@ export function normalizeReceiptExtraction(
         itemId: id,
       });
     } else {
-      const optionDelta = options.reduce((sum, option) => sum + option.totalPriceDelta, 0);
-      const expectedTotalFromOptions = item.quantity * item.baseUnitPrice + optionDelta;
-      const expectedTotalFromUnit = item.quantity * item.unitPrice;
-      const hasPaidOptions = options.length > 0;
-      const totalMatchesOptions = expectedTotalFromOptions === item.totalPrice;
-      const totalMatchesUnit = expectedTotalFromUnit === item.totalPrice;
+      const expectedTotal = item.quantity * item.unitPrice;
+      totalPrice = expectedTotal;
 
-      if ((hasPaidOptions && totalMatchesOptions) || (!hasPaidOptions && totalMatchesUnit)) {
-        totalPrice = item.totalPrice;
-      } else if (expectedTotalFromOptions === expectedTotalFromUnit) {
-        totalPrice = expectedTotalFromUnit;
+      if (item.totalPrice !== expectedTotal) {
         itemFlags.push({
           code: "auto_corrected_line_total",
           message: "Line total was corrected from quantity and unit price.",
           itemId: id,
-        });
-      } else {
-        blockingErrors.push({
-          code: "line_total_mismatch",
-          message: "Line total does not match quantity, unit price, and options.",
-          itemId: id,
-          delta: item.totalPrice - expectedTotalFromUnit,
         });
       }
     }
@@ -565,8 +552,37 @@ export function calculateSettlement(
   const assignable = createAssignableUnits(draft.items);
   blockingErrors.push(...draft.blockingErrors, ...assignable.blockingErrors);
 
+  const memberIds = new Set(members.map((member) => member.id));
   const unitById = new Map(assignable.units.map((unit) => [unit.id, unit]));
-  const assignedUnitIds = new Set(assignments.map((assignment) => assignment.itemUnitId));
+  const assignedUnitIds = new Set<string>();
+
+  for (const assignment of assignments) {
+    if (!unitById.has(assignment.itemUnitId)) {
+      blockingErrors.push({
+        code: "invalid_assignment",
+        message: "Assignment references an unknown item unit.",
+      });
+      continue;
+    }
+    if (assignedUnitIds.has(assignment.itemUnitId)) {
+      blockingErrors.push({
+        code: "invalid_assignment",
+        message: "Item unit is assigned more than once.",
+      });
+      continue;
+    }
+    if (
+      assignment.memberIds.length === 0 ||
+      assignment.memberIds.some((memberId) => !memberIds.has(memberId))
+    ) {
+      blockingErrors.push({
+        code: "invalid_assignment",
+        message: "Assignment references an unknown member.",
+      });
+      continue;
+    }
+    assignedUnitIds.add(assignment.itemUnitId);
+  }
 
   for (const unit of assignable.units) {
     if (!assignedUnitIds.has(unit.id)) {
@@ -587,8 +603,8 @@ export function calculateSettlement(
   }
 
   const memberOrder = new Map(members.map((member, index) => [member.id, index]));
-  const memberShares = new Map<string, { gross: number; items: SettlementMemberItem[] }>(
-    members.map((member) => [member.id, { gross: 0, items: [] }]),
+  const memberShares = new Map<string, { gross: number; exactGross: number; items: SettlementMemberItem[] }>(
+    members.map((member) => [member.id, { gross: 0, exactGross: 0, items: [] }]),
   );
 
   for (const assignment of assignments) {
@@ -602,12 +618,14 @@ export function calculateSettlement(
       participantIds.map((id) => ({ id, weight: 1 })),
       memberOrder,
     );
+    const exactAmount = unit.unitAmount / participantIds.length;
 
     participantIds.forEach((memberId) => {
       const amount = split.get(memberId) ?? 0;
       const share = memberShares.get(memberId);
       if (!share) return;
       share.gross += amount;
+      share.exactGross += exactAmount;
       share.items.push({
         itemUnitId: unit.id,
         itemId: unit.itemId,
@@ -618,18 +636,18 @@ export function calculateSettlement(
     });
   }
 
-  const totalGross = Array.from(memberShares.values()).reduce((sum, share) => sum + share.gross, 0);
+  const totalGross = Array.from(memberShares.values()).reduce((sum, share) => sum + share.exactGross, 0);
   const adjustmentShares = splitIntegerByWeight(
     draft.adjustmentTotal,
     members.map((member) => ({
       id: member.id,
-      weight: totalGross === 0 ? 1 : (memberShares.get(member.id)?.gross ?? 0),
+      weight: totalGross === 0 ? 1 : (memberShares.get(member.id)?.exactGross ?? 0),
     })),
     memberOrder,
   );
 
   const results = members.map((member) => {
-    const share = memberShares.get(member.id) ?? { gross: 0, items: [] };
+    const share = memberShares.get(member.id) ?? { gross: 0, exactGross: 0, items: [] };
     const adjustmentTotal = adjustmentShares.get(member.id) ?? 0;
     return {
       memberId: member.id,

@@ -71,13 +71,26 @@ export function updateReceiptItems(
   items: Pick<SettlementItem, "id" | "name" | "quantity" | "unitPrice">[],
   totalAmount: number,
 ): ReceiptDraft {
-  const nextItems = draft.items
-    .filter((item) => items.some((candidate) => candidate.id === item.id))
-    .map((item) => {
-      const edited = items.find((candidate) => candidate.id === item.id);
-      if (!edited) return item;
+  const sourceById = new Map(draft.items.map((item) => [item.id, item]));
+  const nextItems = items.map((edited) => {
+    const source = sourceById.get(edited.id);
+    const baseItem =
+      source ??
+      ({
+        id: edited.id,
+        name: edited.name,
+        quantity: edited.quantity,
+        baseUnitPrice: edited.unitPrice,
+        unitPrice: edited.unitPrice,
+        totalPrice: edited.quantity * edited.unitPrice,
+        options: [],
+        rawText: "",
+        confidence: 1,
+        reviewFlags: [],
+      } satisfies SettlementItem);
+
       return {
-        ...item,
+        ...baseItem,
         name: edited.name.trim(),
         quantity: edited.quantity,
         baseUnitPrice: edited.unitPrice,
@@ -94,6 +107,41 @@ export function updateReceiptItems(
     0,
   );
   const reconciliationDelta = itemTotal + adjustmentTotal - totalAmount;
+  const blockingErrors: ReceiptDraft["blockingErrors"] = [];
+
+  if (
+    nextItems.some(
+      (item) =>
+        item.name.trim().length === 0 ||
+        item.quantity <= 0 ||
+        item.unitPrice < 0 ||
+        item.totalPrice < 0,
+    )
+  ) {
+    blockingErrors.push({
+      code: "invalid_item_fields",
+      message: "Item has empty or invalid required fields.",
+    });
+  }
+  if (nextItems.length === 0) {
+    blockingErrors.push({
+      code: "no_items",
+      message: "Receipt has no purchasable items.",
+    });
+  }
+  if (totalAmount <= 0) {
+    blockingErrors.push({
+      code: "missing_total_amount",
+      message: "Final total amount is missing.",
+    });
+  }
+  if (reconciliationDelta !== 0) {
+    blockingErrors.push({
+      code: "receipt_total_mismatch",
+      message: "Item subtotal plus adjustments does not equal final total.",
+      delta: reconciliationDelta,
+    });
+  }
 
   return {
     ...draft,
@@ -113,18 +161,6 @@ export function updateReceiptItems(
             },
           ]
         : draft.reviewFlags,
-    blockingErrors:
-      nextItems.length === 0
-        ? [{ code: "no_items", message: "Receipt has no purchasable items." }]
-        : reconciliationDelta !== 0
-          ? [
-              {
-                code: "receipt_total_mismatch",
-                message:
-                  "Item subtotal plus adjustments does not equal final total.",
-                delta: reconciliationDelta,
-              },
-            ]
-          : [],
+    blockingErrors,
   };
 }

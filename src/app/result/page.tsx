@@ -30,62 +30,40 @@ type Result = {
   items: ResultItem[];
 };
 
-const seedResults: Result[] = [
-  {
-    id: 1,
-    name: "지은",
-    total: 14700,
-    items: [
-      { name: "아메리카노", units: 1, amount: 4500 },
-      { name: "아메리카노", units: 1, amount: 1500, splitWith: 3 },
-      { name: "카페라떼", units: 1, amount: 1667, splitWith: 3 },
-      { name: "치즈케이크", units: 1, amount: 2500, splitWith: 3 },
-      { name: "샌드위치", units: 2, amount: 4533, splitWith: 3 },
-    ],
-  },
-  {
-    id: 2,
-    name: "민호",
-    total: 10200,
-    items: [
-      { name: "아메리카노", units: 1, amount: 1500, splitWith: 3 },
-      { name: "카페라떼", units: 1, amount: 1667, splitWith: 3 },
-      { name: "치즈케이크", units: 1, amount: 2500, splitWith: 3 },
-      { name: "샌드위치", units: 2, amount: 4533, splitWith: 3 },
-    ],
-  },
-  {
-    id: 3,
-    name: "수아",
-    total: 10200,
-    items: [
-      { name: "아메리카노", units: 1, amount: 1500, splitWith: 3 },
-      { name: "카페라떼", units: 1, amount: 1667, splitWith: 3 },
-      { name: "치즈케이크", units: 1, amount: 2500, splitWith: 3 },
-      { name: "샌드위치", units: 2, amount: 4533, splitWith: 3 },
-    ],
-  },
-];
-
 const fmt = (n: number) => Math.round(n).toLocaleString("ko-KR");
 
 export default function ResultPage() {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [copied, setCopied] = useState(false);
-  const [results, setResults] = useState<Result[]>(seedResults);
+  const [results, setResults] = useState<Result[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const session = loadSession();
-      const receipt = session?.confirmedReceipt ?? session?.receipt;
-      if (!session || !receipt || session.assignments.length === 0) return;
+      setLoaded(true);
+      if (!session) {
+        router.replace("/");
+        return;
+      }
+      if (!session.confirmedReceipt) {
+        router.replace(session.receipt ? "/review" : "/");
+        return;
+      }
+      if (session.assignments.length === 0) {
+        router.replace("/assign");
+        return;
+      }
       const settlement = calculateSettlement(
-        receipt,
+        session.confirmedReceipt,
         session.members,
         session.assignments,
       );
-      if (settlement.blockingErrors.length > 0) return;
+      if (settlement.blockingErrors.length > 0) {
+        router.replace("/assign");
+        return;
+      }
       setResults(
         settlement.members.map((member, index) => ({
           id: index + 1,
@@ -112,7 +90,7 @@ export default function ResultPage() {
       );
     }, 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [router]);
 
   const grandTotal = useMemo(
     () => results.reduce((sum, r) => sum + r.total, 0),
@@ -128,6 +106,7 @@ export default function ResultPage() {
     });
 
   const copyToClipboard = async () => {
+    if (results.length === 0) return;
     const lines = [
       formatSettlementClipboard({
         members: results.map((result) => ({
@@ -150,6 +129,18 @@ export default function ResultPage() {
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
   };
+
+  if (!loaded || results.length === 0) {
+    return (
+      <div className="pb-10">
+        <Sheet>
+          <p className="font-hand text-center text-xl text-[var(--color-ink-soft)]">
+            정산 결과를 불러오는 중...
+          </p>
+        </Sheet>
+      </div>
+    );
+  }
 
   return (
     <div className="pb-10">

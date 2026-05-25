@@ -26,6 +26,7 @@ export default function MembersPage() {
   const [hasReceipt, setHasReceipt] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractionError, setExtractionError] = useState<string | null>(null);
+  const [sessionHydrated, setSessionHydrated] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const submitAfterCompositionRef = useRef(false);
   const router = useRouter();
@@ -33,6 +34,7 @@ export default function MembersPage() {
   useEffect(() => {
     const syncFromSession = () => {
       const session = loadSession();
+      setSessionHydrated(true);
       if (!session) return;
       setHasReceipt(Boolean(session.receipt));
       setIsExtracting(session.status === "extracting");
@@ -48,10 +50,11 @@ export default function MembersPage() {
   }, []);
 
   useEffect(() => {
+    if (!sessionHydrated) return;
     const session = loadSession();
     if (!session) return;
     saveSession({ ...session, members });
-  }, [members]);
+  }, [members, sessionHydrated]);
 
   const addMember = (rawName = value) => {
     const name = rawName.trim();
