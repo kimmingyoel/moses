@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRef } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createSession, loadSession, saveSession } from "@/lib/session";
 import type { ReceiptDraft } from "@/lib/receipt";
@@ -22,6 +23,17 @@ import {
   DoodleBurst,
 } from "@/components/sketch";
 
+const SAMPLE_RECEIPTS = [
+  "/samples/sample_1.jpeg",
+  "/samples/sample_2.jpeg",
+  "/samples/sample_3.jpeg",
+  "/samples/sample_4.jpeg",
+  "/samples/sample_5.jpeg",
+  "/samples/sample_6.jpeg",
+];
+
+const SAMPLE_DRAG_MIME = "application/x-moses-sample";
+
 export default function UploadPage() {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -30,6 +42,22 @@ export default function UploadPage() {
   const router = useRouter();
 
   const start = () => inputRef.current?.click();
+
+  const loadSample = async (url: string) => {
+    if (uploading) return;
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("샘플 영수증을 불러오지 못했어요.");
+      const blob = await response.blob();
+      const name = url.split("/").pop() ?? "sample.jpeg";
+      const file = new File([blob], name, {
+        type: blob.type || "image/jpeg",
+      });
+      await extractReceipt(file);
+    } catch {
+      setError("샘플 영수증을 불러오지 못했어요.");
+    }
+  };
 
   const extractReceipt = async (file: File) => {
     setError(null);
@@ -161,6 +189,11 @@ export default function UploadPage() {
           onDrop={(e) => {
             e.preventDefault();
             setDragOver(false);
+            const sampleUrl = e.dataTransfer.getData(SAMPLE_DRAG_MIME);
+            if (sampleUrl) {
+              void loadSample(sampleUrl);
+              return;
+            }
             const file = e.dataTransfer.files.item(0);
             if (file) void extractReceipt(file);
           }}
@@ -241,6 +274,52 @@ export default function UploadPage() {
           첨부할 수 있는 확장자: JPG, PNG, WEBP, GIF
         </p>
       </Sheet>
+
+      {/* ─── Sample receipt dock ─── */}
+      <div className="mt-6 sm:mt-8">
+        <p className="font-hand text-center text-base text-[var(--color-ink-soft)] sm:text-lg">
+          예시 영수증을 끌어다 위 박스에 놓아보세요
+        </p>
+        <div className="mt-3 flex flex-wrap items-end justify-center gap-3 sm:gap-4">
+          {SAMPLE_RECEIPTS.map((url, i) => {
+            const rotations = ["-rotate-3", "rotate-2", "-rotate-1", "rotate-3", "-rotate-2", "rotate-1"];
+            return (
+              <button
+                key={url}
+                type="button"
+                onClick={() => void loadSample(url)}
+                disabled={uploading}
+                aria-label={`샘플 영수증 ${i + 1} 사용`}
+                title={`샘플 영수증 ${i + 1}`}
+                className={`relative block h-[112px] w-[80px] shrink-0 transition-transform duration-150 hover:-translate-y-1.5 hover:rotate-0 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 sm:h-[124px] sm:w-[88px] ${rotations[i % rotations.length]}`}
+              >
+                <SketchRectVisual
+                  radius={10}
+                  fill="#ffffff"
+                  stroke="ink"
+                  shadow="drop"
+                  strokeWidth={2.2}
+                  wobble={0.55}
+                  seed={9 + i}
+                />
+                <Image
+                  src={url}
+                  alt=""
+                  width={88}
+                  height={124}
+                  draggable={!uploading}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData(SAMPLE_DRAG_MIME, url);
+                    e.dataTransfer.effectAllowed = "copy";
+                  }}
+                  className="absolute inset-[6px] h-[calc(100%-12px)] w-[calc(100%-12px)] cursor-grab rounded-[6px] object-cover select-none active:cursor-grabbing"
+                  unoptimized
+                />
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
