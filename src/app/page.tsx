@@ -43,6 +43,113 @@ export default function UploadPage() {
 
   const start = () => inputRef.current?.click();
 
+  // Set to true while a pointer-drag is in progress; consumed by the click
+  // handler to suppress the click that would otherwise follow a drag-release.
+  const draggedRef = useRef(false);
+
+  const beginPointerDrag = (
+    e: React.PointerEvent<HTMLButtonElement>,
+    url: string,
+  ) => {
+    if (uploading) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    const btn = e.currentTarget;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let moved = false;
+    let dx = 0;
+    let dy = 0;
+    try {
+      btn.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore — capture is best-effort
+    }
+
+    const hitDropZone = (x: number, y: number) => {
+      // Disable our own hit so elementFromPoint sees what's beneath the block.
+      const prev = btn.style.pointerEvents;
+      btn.style.pointerEvents = "none";
+      const target = document.elementFromPoint(x, y) as HTMLElement | null;
+      btn.style.pointerEvents = prev;
+      return !!target?.closest('[data-drop-zone="receipts"]');
+    };
+
+    const onMove = (ev: PointerEvent) => {
+      dx = ev.clientX - startX;
+      dy = ev.clientY - startY;
+      if (!moved) {
+        if (Math.hypot(dx, dy) < 5) return;
+        moved = true;
+        draggedRef.current = true;
+        btn.style.zIndex = "50";
+        btn.style.transition = "none";
+        btn.style.cursor = "grabbing";
+      }
+      btn.style.transform = `translate(${dx}px, ${dy}px) scale(1.05)`;
+      setDragOver(hitDropZone(ev.clientX, ev.clientY));
+    };
+
+    const cleanup = () => {
+      btn.removeEventListener("pointermove", onMove);
+      btn.removeEventListener("pointerup", onUp);
+      btn.removeEventListener("pointercancel", onUp);
+    };
+
+    const onUp = (ev: PointerEvent) => {
+      cleanup();
+      try {
+        btn.releasePointerCapture(ev.pointerId);
+      } catch {
+        // ignore
+      }
+      btn.style.cursor = "";
+
+      if (!moved) {
+        // Treat as a click — onClick will fire and call loadSample.
+        return;
+      }
+
+      setDragOver(false);
+      const dropped = hitDropZone(ev.clientX, ev.clientY);
+
+      if (dropped) {
+        btn.style.transform = "";
+        btn.style.zIndex = "";
+        btn.style.transition = "";
+        void loadSample(url);
+      } else {
+        // Snap back from the release point to the original slot.
+        const anim = btn.animate(
+          [
+            { transform: `translate(${dx}px, ${dy}px) scale(1.05)` },
+            { transform: "translate(0, 0) scale(1)" },
+          ],
+          { duration: 320, easing: "cubic-bezier(.34, 1.56, .64, 1)" },
+        );
+        // Clear inline transform synchronously so the element renders at its
+        // base position; the WAAPI animation overlays a transient transform
+        // during the 320 ms snap-back without leaving residue afterward.
+        btn.style.transform = "";
+        const restore = () => {
+          btn.style.zIndex = "";
+          btn.style.transition = "";
+        };
+        anim.onfinish = restore;
+        anim.oncancel = restore;
+      }
+
+      // Clear the drag flag on the next tick so the click event that some
+      // browsers synthesize after pointerup gets suppressed exactly once.
+      setTimeout(() => {
+        draggedRef.current = false;
+      }, 0);
+    };
+
+    btn.addEventListener("pointermove", onMove);
+    btn.addEventListener("pointerup", onUp);
+    btn.addEventListener("pointercancel", onUp);
+  };
+
   const loadSample = async (url: string) => {
     if (uploading) return;
     try {
@@ -176,6 +283,7 @@ export default function UploadPage() {
 
         {/* ─── Upload zone ─── */}
         <div
+          data-drop-zone="receipts"
           className="relative z-10 mx-auto mt-6 mb-2 max-w-[460px]"
           onDragOver={(e) => {
             e.preventDefault();
@@ -287,11 +395,15 @@ export default function UploadPage() {
               <button
                 key={url}
                 type="button"
-                onClick={() => void loadSample(url)}
+                onPointerDown={(e) => beginPointerDrag(e, url)}
+                onClick={() => {
+                  if (draggedRef.current) return;
+                  void loadSample(url);
+                }}
                 disabled={uploading}
                 aria-label={`샘플 영수증 ${i + 1} 사용`}
                 title={`샘플 영수증 ${i + 1}`}
-                className={`relative block h-[112px] w-[80px] shrink-0 transition-transform duration-150 hover:-translate-y-1.5 hover:rotate-0 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 sm:h-[124px] sm:w-[88px] ${rotations[i % rotations.length]}`}
+                className={`relative block h-[112px] w-[80px] shrink-0 touch-none cursor-grab transition-transform duration-150 hover:-translate-y-1.5 hover:rotate-0 active:translate-y-0 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50 sm:h-[124px] sm:w-[88px] ${rotations[i % rotations.length]}`}
               >
                 <SketchRectVisual
                   radius={10}
@@ -307,12 +419,8 @@ export default function UploadPage() {
                   alt=""
                   width={88}
                   height={124}
-                  draggable={!uploading}
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData(SAMPLE_DRAG_MIME, url);
-                    e.dataTransfer.effectAllowed = "copy";
-                  }}
-                  className="absolute inset-[6px] h-[calc(100%-12px)] w-[calc(100%-12px)] cursor-grab rounded-[6px] object-cover select-none active:cursor-grabbing"
+                  draggable={false}
+                  className="pointer-events-none absolute inset-[6px] h-[calc(100%-12px)] w-[calc(100%-12px)] rounded-[6px] object-cover select-none"
                   unoptimized
                 />
               </button>
