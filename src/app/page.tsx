@@ -130,9 +130,14 @@ export default function UploadPage() {
         // base position; the WAAPI animation overlays a transient transform
         // during the 320 ms snap-back without leaving residue afterward.
         btn.style.transform = "";
+        // Disable hit-testing during the snap-back so the cursor — still
+        // parked at the release point — doesn't trigger `hover:rotate-0`
+        // and leave the block standing upright when the animation lands.
+        btn.style.pointerEvents = "none";
         const restore = () => {
           btn.style.zIndex = "";
           btn.style.transition = "";
+          btn.style.pointerEvents = "";
         };
         anim.onfinish = restore;
         anim.oncancel = restore;
