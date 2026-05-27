@@ -28,6 +28,27 @@ type Item = {
 
 const fmt = (n: number) => n.toLocaleString("ko-KR");
 
+function receiptEditableFieldsMatch(
+  a: SplitSession["receipt"],
+  b: SplitSession["receipt"],
+) {
+  if (!a || !b) return a === b;
+  if (a.totalAmount !== b.totalAmount || a.items.length !== b.items.length) {
+    return false;
+  }
+  return a.items.every((item, index) => {
+    const other = b.items[index];
+    return (
+      other !== undefined &&
+      item.id === other.id &&
+      item.name === other.name &&
+      item.quantity === other.quantity &&
+      item.unitPrice === other.unitPrice &&
+      item.totalPrice === other.totalPrice
+    );
+  });
+}
+
 export default function ReviewPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [session, setSession] = useState<SplitSession | null>(null);
@@ -100,21 +121,47 @@ export default function ReviewPage() {
     if (delta !== 0) window.scrollBy(0, delta);
   }, [items.length]);
 
-  const confirmReceipt = () => {
-    if (!session?.receipt) return;
-    const confirmedReceipt = updateReceiptItems(
-      session.receipt,
-      items,
-      computedTotal,
+  const buildEditedReceipt = (source: SplitSession["receipt"]) => {
+    if (!source) return null;
+    return updateReceiptItems(source, items, computedTotal);
+  };
+
+  const saveReceiptDraft = () => {
+    const current = loadSession() ?? session;
+    const editedReceipt = buildEditedReceipt(current?.receipt ?? null);
+    if (!current || !editedReceipt) return null;
+
+    const stillConfirmed = receiptEditableFieldsMatch(
+      editedReceipt,
+      current.confirmedReceipt,
     );
+    return saveSession({
+      ...current,
+      status: stillConfirmed ? current.status : "needs_review",
+      receipt: editedReceipt,
+      confirmedReceipt: stillConfirmed ? current.confirmedReceipt : null,
+      assignments: stillConfirmed ? current.assignments : [],
+    });
+  };
+
+  const confirmReceipt = () => {
+    const current = loadSession() ?? session;
+    const confirmedReceipt = buildEditedReceipt(current?.receipt ?? null);
+    if (!current || !confirmedReceipt) return;
     if (confirmedReceipt.blockingErrors.length > 0) return;
     saveSession({
-      ...session,
+      ...current,
       status: "assigning",
+      receipt: confirmedReceipt,
       confirmedReceipt,
       assignments: [],
     });
     router.push("/assign");
+  };
+
+  const goBack = () => {
+    saveReceiptDraft();
+    router.back();
   };
 
   return (
@@ -274,7 +321,7 @@ export default function ReviewPage() {
           >
             <button
               type="button"
-              onClick={() => router.back()}
+              onClick={goBack}
               className="inline-flex items-center gap-1.5 font-hand text-lg text-[var(--color-ink-soft)] transition-colors hover:text-[var(--color-ink-deep)]"
             >
               <IconArrowLeft className="h-4 w-4" />
