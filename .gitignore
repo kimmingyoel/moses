@@ -13,6 +13,8 @@
 *.pem
 .claude/
 /design_assets/
+/receipts/
+/evals/receipts/
 
 # local font assets
 /public/fonts/*
