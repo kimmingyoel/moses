@@ -2,6 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  MAX_MEMBER_INPUT_LENGTH,
+  MAX_MEMBERS,
+  limitMemberNamesForAdd,
+  parseMemberNames,
+} from "@/lib/member-input";
 import { loadSession, saveSession } from "@/lib/session";
 import {
   Sheet,
@@ -57,12 +63,15 @@ export default function MembersPage() {
   }, [members, sessionHydrated]);
 
   const addMember = (rawName = value) => {
-    const name = rawName.trim();
-    if (!name) return;
-    if (members.length >= 20) return;
-    setMembers((m) =>
-      m.length >= 20 ? m : [...m, { id: crypto.randomUUID(), name }],
-    );
+    if (limitMemberNamesForAdd(rawName, members.length).length === 0) return;
+    setMembers((m) => {
+      const names = limitMemberNamesForAdd(rawName, m.length);
+      if (names.length === 0) return m;
+      return [
+        ...m,
+        ...names.map((name) => ({ id: crypto.randomUUID(), name })),
+      ];
+    });
     setValue("");
     inputRef.current?.focus();
   };
@@ -70,6 +79,8 @@ export default function MembersPage() {
   const removeMember = (id: string) =>
     setMembers((m) => m.filter((x) => x.id !== id));
 
+  const canAddMembers =
+    parseMemberNames(value).length > 0 && members.length < MAX_MEMBERS;
   const canProceed = hasReceipt && members.length >= 2;
 
   return (
@@ -114,12 +125,12 @@ export default function MembersPage() {
               addMember(e.currentTarget.value);
             }}
             placeholder="이름을 입력하세요"
-            maxLength={12}
+            maxLength={MAX_MEMBER_INPUT_LENGTH}
             className="min-w-0 flex-1"
           />
           <SketchButton
             onClick={() => addMember()}
-            disabled={!value.trim() || members.length >= 20}
+            disabled={!canAddMembers}
             className="shrink-0"
           >
             추가
@@ -135,7 +146,7 @@ export default function MembersPage() {
             </span>
             명
           </span>
-          {members.length >= 20 && (
+          {members.length >= MAX_MEMBERS && (
             <span className="font-hand text-base text-[var(--color-ink-mute)]">
               (최대 인원에 도달했어요)
             </span>
