@@ -161,13 +161,30 @@ export default function AssignPage() {
     };
   }, [clearPreviewTimers, router]);
 
+  // Index items by id once per change so the per-member / per-item lookups
+  // below stay O(1) instead of scanning the whole `items` array each time.
+  const itemById = useMemo(
+    () => new Map(items.map((item) => [item.id, item])),
+    [items],
+  );
+
+  // Count of already-assigned units per item, computed in a single pass over
+  // `assignments`. Turns `remainingQty` into an O(1) lookup rather than a fresh
+  // filter over every assignment for each item it's called on.
+  const usedByItem = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const a of assignments) {
+      counts.set(a.itemId, (counts.get(a.itemId) ?? 0) + 1);
+    }
+    return counts;
+  }, [assignments]);
+
   const remainingQty = useCallback(
     (itemId: string) => {
-      const used = assignments.filter((a) => a.itemId === itemId).length;
-      const item = items.find((i) => i.id === itemId);
-      return item ? item.totalQty - used : 0;
+      const item = itemById.get(itemId);
+      return item ? item.totalQty - (usedByItem.get(itemId) ?? 0) : 0;
     },
-    [assignments, items]
+    [itemById, usedByItem]
   );
 
   const memberTotal = useCallback(
@@ -175,13 +192,13 @@ export default function AssignPage() {
       let total = 0;
       for (const a of assignments) {
         if (!a.memberIds.includes(memberId)) continue;
-        const item = items.find((i) => i.id === a.itemId);
+        const item = itemById.get(a.itemId);
         if (!item) continue;
         total += item.unitPrice / a.memberIds.length;
       }
       return total;
     },
-    [assignments, items]
+    [assignments, itemById]
   );
 
   const visibleItems = useMemo(
@@ -199,7 +216,7 @@ export default function AssignPage() {
   const performAssign = (itemId: string, memberIds: string[]) => {
     if (memberIds.length === 0) return;
     if (remainingQty(itemId) <= 0) return;
-    const item = items.find((candidate) => candidate.id === itemId);
+    const item = itemById.get(itemId);
     if (!item) return;
     const usedUnitIds = new Set(
       assignments
@@ -227,7 +244,7 @@ export default function AssignPage() {
     const allMemberIds = members.map((m) => m.id);
     const next: Assignment[] = [];
     for (const item of items) {
-      const used = assignments.filter((a) => a.itemId === item.id).length;
+      const used = usedByItem.get(item.id) ?? 0;
       const rem = item.totalQty - used;
       for (let i = 0; i < rem; i++) {
         next.push({
@@ -282,7 +299,7 @@ export default function AssignPage() {
       >();
       for (const a of assignments) {
         if (!a.memberIds.includes(memberId)) continue;
-        const item = items.find((i) => i.id === a.itemId);
+        const item = itemById.get(a.itemId);
         if (!item) continue;
         const share = item.unitPrice / a.memberIds.length;
         const entry = map.get(a.itemId) ?? {
@@ -300,7 +317,7 @@ export default function AssignPage() {
       }
       return Array.from(map.values());
     },
-    [assignments, items]
+    [assignments, itemById]
   );
 
   const handleMemberEnter = useCallback(

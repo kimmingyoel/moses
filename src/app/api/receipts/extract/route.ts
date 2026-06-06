@@ -16,6 +16,41 @@ const SUPPORTED_TYPES = new Set([
   "image/gif",
 ]);
 
+type ExtractionAssets = {
+  prompt: string;
+  schema: unknown;
+  promptSha256: string;
+  schemaSha256: string;
+};
+
+// The prompt and schema are static files that never change at runtime, so read,
+// parse, and hash them once and reuse the result across every request instead
+// of doing two disk reads + a JSON.parse + two SHA-256 digests per upload.
+let extractionAssets: Promise<ExtractionAssets> | null = null;
+
+function loadExtractionAssets(): Promise<ExtractionAssets> {
+  if (!extractionAssets) {
+    extractionAssets = (async () => {
+      const [prompt, schemaText] = await Promise.all([
+        readFile(join(process.cwd(), "prompts/receipt-extraction.md"), "utf8"),
+        readFile(join(process.cwd(), "schemas/receipt-extraction.schema.json"), "utf8"),
+      ]);
+      return {
+        prompt,
+        schema: JSON.parse(schemaText),
+        promptSha256: sha256(prompt),
+        schemaSha256: sha256(schemaText),
+      };
+    })().catch((error) => {
+      // Don't cache a failed read — a transient error shouldn't poison every
+      // subsequent request.
+      extractionAssets = null;
+      throw error;
+    });
+  }
+  return extractionAssets;
+}
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -26,7 +61,7 @@ export async function POST(request: Request) {
     }
     if (!SUPPORTED_TYPES.has(file.type)) {
       return Response.json(
-        { error: "JPG, PNG, WEBP, GIF 이미지만 분석할 수 있어요." },
+        { error: "JPG, PNG, WEBP 이미지만 분석할 수 있어요." },
         { status: 400 },
       );
     }
@@ -46,12 +81,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const [prompt, schemaText, imageBuffer] = await Promise.all([
-      readFile(join(process.cwd(), "prompts/receipt-extraction.md"), "utf8"),
-      readFile(join(process.cwd(), "schemas/receipt-extraction.schema.json"), "utf8"),
+    const [assets, imageBuffer] = await Promise.all([
+      loadExtractionAssets(),
       file.arrayBuffer(),
     ]);
-    const schema = JSON.parse(schemaText);
+    const { prompt, schema } = assets;
     const imageBase64 = Buffer.from(imageBuffer).toString("base64");
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
@@ -122,8 +156,8 @@ export async function POST(request: Request) {
         responseId: typeof payload.id === "string" ? payload.id : null,
         model: MODEL,
         detail: DETAIL,
-        promptSha256: sha256(prompt),
-        schemaSha256: sha256(schemaText),
+        promptSha256: assets.promptSha256,
+        schemaSha256: assets.schemaSha256,
       },
     });
   } catch (error) {
