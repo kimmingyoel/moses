@@ -24,12 +24,11 @@ import {
 } from "@/components/sketch";
 
 const SAMPLE_RECEIPTS = [
-  "/samples/sample_1.jpeg",
-  "/samples/sample_2.jpeg",
-  "/samples/sample_3.jpeg",
-  "/samples/sample_4.jpeg",
-  "/samples/sample_5.jpeg",
-  "/samples/sample_6.jpeg",
+  "/samples/sample_1.webp",
+  "/samples/sample_3.webp",
+  "/samples/sample_4.webp",
+  "/samples/sample_5.webp",
+  "/samples/sample_6.webp",
 ];
 
 const SAMPLE_DRAG_MIME = "application/x-moses-sample";
@@ -158,12 +157,16 @@ export default function UploadPage() {
   const loadSample = async (url: string) => {
     if (uploading) return;
     try {
-      const response = await fetch(url);
+      // The dock renders a tiny 256px thumbnail (`url`), but OCR needs legible
+      // text — so upload the higher-resolution variant, fetched lazily only
+      // when a sample is actually used.
+      const sourceUrl = url.replace(/\.webp$/, ".hires.webp");
+      const response = await fetch(sourceUrl);
       if (!response.ok) throw new Error("샘플 영수증을 불러오지 못했어요.");
       const blob = await response.blob();
-      const name = url.split("/").pop() ?? "sample.jpeg";
+      const name = sourceUrl.split("/").pop() ?? "sample.webp";
       const file = new File([blob], name, {
-        type: blob.type || "image/jpeg",
+        type: blob.type || "image/webp",
       });
       await extractReceipt(file);
     } catch {
