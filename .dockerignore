@@ -1,0 +1,16 @@
+.git
+.next
+node_modules
+npm-debug.log*
+.env*
+Dockerfile
+README.md
+tsconfig.tsbuildinfo
+**/.DS_Store
+**/._*
+/design_assets
+/docs
+/evals
+/receipts
+/deploy
+docker-compose.yml

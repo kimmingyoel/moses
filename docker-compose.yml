@@ -1,0 +1,53 @@
+# Production stack: the Next.js app (built from ./Dockerfile) behind an nginx
+# reverse proxy that terminates TLS. The certbot service issues and renews
+# Let's Encrypt certificates into a shared volume.
+#
+# First-time setup is in deploy/README.md — run deploy/init-letsencrypt.sh
+# before the first `docker compose up`.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # Runtime secret — supplied from .env, never baked into the image.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?set OPENAI_API_KEY in .env}
+    expose:
+      - "3000" # internal only; reached by nginx as app:3000. No host `ports:`.
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+      NGINX_ENVSUBST_FILTER: DOMAIN # only substitute ${DOMAIN} in templates
+    volumes:
+      - ./deploy/nginx/templates:/etc/nginx/templates:ro
+      - certbot-conf:/etc/letsencrypt:ro
+      - certbot-www:/var/www/certbot:ro
+    # Reload every 6h so renewed certificates are picked up without a restart.
+    command: >-
+      /bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & exec nginx -g "daemon off;"'
+
+  certbot:
+    image: certbot/certbot
+    restart: unless-stopped
+    volumes:
+      - certbot-conf:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+    # Try renewal twice a day; certbot only acts within 30 days of expiry.
+    entrypoint: >-
+      /bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h & wait $${!}; done'
+
+volumes:
+  certbot-conf:
+  certbot-www:
