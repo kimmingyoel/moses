@@ -86,6 +86,13 @@ export function SketchRectVisual({
     [seed],
   );
   const [data, setData] = useState<{ vb: { w: number; h: number }; paths: HandDrawnPaths }>(fallback);
+  // Tracks whether useLayoutEffect has produced a real measurement. While
+  // false we're still painting the 4×4 fallback viewBox stretched via
+  // preserveAspectRatio="none" — applying the shadow filter in that state
+  // makes feOffset/feGaussianBlur (in userSpaceOnUse units) blow up into
+  // a huge dark blob, since e.g. dy=3 viewBox-units becomes hundreds of
+  // pixels once the viewBox is stretched to fit the parent.
+  const [measured, setMeasured] = useState(false);
   const uid = useId().replace(/:/g, "");
   const shadowId = `sk-shadow-${uid}`;
 
@@ -121,6 +128,7 @@ export function SketchRectVisual({
         seed,
       });
       setData({ vb: { w, h }, paths });
+      setMeasured(true);
       lastSize = { w, h };
       return true;
     };
@@ -181,7 +189,7 @@ export function SketchRectVisual({
           // still clips the rest of the SVG.
           style={{ display: "block", overflow: "visible" }}
         >
-          {shadow !== "none" && (
+          {shadow !== "none" && measured && (
             <defs>
               <filter
                 id={shadowId}
@@ -204,11 +212,12 @@ export function SketchRectVisual({
             </defs>
           )}
 
-          {/* Fill (with optional shadow filter) */}
+          {/* Fill (with optional shadow filter — suppressed while still on
+              the SSR fallback viewBox, see `measured` comment above). */}
           <path
             d={data.paths.fill}
             fill={fill}
-            filter={shadow !== "none" ? `url(#${shadowId})` : undefined}
+            filter={shadow !== "none" && measured ? `url(#${shadowId})` : undefined}
           />
 
           {!hideStroke && (
@@ -221,12 +230,15 @@ export function SketchRectVisual({
               strokeDasharray={dashed ? "9 7" : undefined}
               vectorEffect="non-scaling-stroke"
             >
-              {data.paths.edges.map((d, i) => (
-                <path key={`edge-${i}`} d={d} vectorEffect="non-scaling-stroke" />
-              ))}
-              {data.paths.corners.map((d, i) => (
-                <path key={`corner-${i}`} d={d} vectorEffect="non-scaling-stroke" />
-              ))}
+              {data.paths.edges.map((d, i) =>
+                d ? <path key={`edge-${i}`} d={d} vectorEffect="non-scaling-stroke" /> : null,
+              )}
+              {data.paths.corners.map((d, i) =>
+                // Skip empty corner paths. A zero-length stroked path with
+                // strokeLinecap="round" paints a full circle in Safari, which
+                // — combined with viewBox stretch — becomes a giant amoeba.
+                d ? <path key={`corner-${i}`} d={d} vectorEffect="non-scaling-stroke" /> : null,
+              )}
             </g>
           )}
         </svg>

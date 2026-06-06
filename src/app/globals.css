@@ -4,15 +4,15 @@
 
 @font-face {
   font-family: "PyeongChangPeace";
-  src: url("/fonts/평창평화체/PyeongChangPeace-Bold.otf") format("opentype");
+  src: url("/fonts/pyeongchang-peace-bold.woff2") format("woff2");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: "DXTypeB";
-  src: url("/fonts/DXTypeB-KSCpc-EUC-H.ttf") format("truetype");
+  font-family: "Orbit";
+  src: url("/fonts/Orbit-Regular.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -20,7 +20,7 @@
 
 @font-face {
   font-family: "OnGeurip-Nuka";
-  src: url("/fonts/온글잎 누카.ttf") format("truetype");
+  src: url("/fonts/on-geurip-nuka.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -30,7 +30,7 @@
 
 @theme {
   --font-logo: "PyeongChangPeace", serif;
-  --font-data: "DXTypeB", "Courier New", monospace;
+  --font-data: "Orbit", "Courier New", monospace;
   --font-hand: "OnGeurip-Nuka", system-ui, sans-serif;
 
   /* Pure grayscale — bright paper at top, deep ink at bottom. */

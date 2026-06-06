@@ -100,10 +100,18 @@ export function buildHandDrawnRect({
 
   // For corners, sample a slightly different sweep on each piece to mimic the
   // double-laced look from the design assets.
-  const tl = cornerArc(0, r, r, 0, r + (rand() - 0.5) * wobble, 1);
-  const tr = cornerArc(w - r, 0, w, r, r + (rand() - 0.5) * wobble, 1);
-  const br = cornerArc(w, h - r, w - r, h, r + (rand() - 0.5) * wobble, 1);
-  const bl = cornerArc(r, h, 0, h - r, r + (rand() - 0.5) * wobble, 1);
+  //
+  // When the radius is zero we emit empty path strings instead of degenerate
+  // arcs. A zero-length stroked path with strokeLinecap="round" renders as a
+  // FULL CIRCLE of diameter=strokeWidth in user-space units in Safari — and
+  // because the SSR fallback uses a 4×4 viewBox stretched via
+  // preserveAspectRatio="none", that "circle" balloons into a several-hundred
+  // pixel amoeba blob at each corner. Empty `d` skips painting entirely.
+  const hasCorners = r > 0;
+  const tl = hasCorners ? cornerArc(0, r, r, 0, r + (rand() - 0.5) * wobble, 1) : "";
+  const tr = hasCorners ? cornerArc(w - r, 0, w, r, r + (rand() - 0.5) * wobble, 1) : "";
+  const br = hasCorners ? cornerArc(w, h - r, w - r, h, r + (rand() - 0.5) * wobble, 1) : "";
+  const bl = hasCorners ? cornerArc(r, h, 0, h - r, r + (rand() - 0.5) * wobble, 1) : "";
 
   const fill = [
     `M ${r} 0`,
