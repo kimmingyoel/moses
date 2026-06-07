@@ -24,7 +24,6 @@ export {
   IconRedo,
   IconAlert,
   IconCopy,
-  IconTrash,
-  IconUsers,
-  IconShuffle,
+  IconCalculator,
+  IconSparkles,
 } from "./Icons";

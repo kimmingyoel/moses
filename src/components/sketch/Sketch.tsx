@@ -308,10 +308,13 @@ export function SketchButton({
   const isPrimary = variant === "primary";
   const isGhost = variant === "ghost";
 
-  const fill = disabled ? PAPER : isPrimary ? INK : isGhost ? "transparent" : PAPER;
+  // Disabled buttons follow design_assets/button (Style=Disabled): a solid
+  // graphite fill + graphite outline, no lift.
+  const GRAPHITE = "#666666";
+  const fill = disabled ? GRAPHITE : isPrimary ? INK : isGhost ? "transparent" : PAPER;
 
   const textCls = disabled
-    ? "text-[var(--color-ash)]"
+    ? "text-[var(--color-paper)]"
     : isPrimary
       ? "text-[var(--color-paper)]"
       : "text-[var(--color-ink)]";
@@ -332,7 +335,7 @@ export function SketchButton({
       <SketchRectVisual
         radius={radius}
         fill={fill}
-        stroke={disabled ? "muted" : "ink"}
+        stroke={disabled ? "soft" : "ink"}
         shadow={isGhost || disabled ? "none" : "drop"}
         wobble={0.48}
         strokeWidth={2.4}

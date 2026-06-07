@@ -22,7 +22,8 @@ import {
   IconUndo,
   IconRedo,
   IconArrowLeft,
-  IconShuffle,
+  IconCalculator,
+  IconSparkles,
   IconCheck,
 } from "@/components/sketch";
 
@@ -346,8 +347,8 @@ export default function AssignPage() {
         contentClassName="px-5 py-4 sm:px-6"
       >
         {allAssigned ? (
-          <p className="font-hand py-4 text-center text-[1.1rem] text-[var(--color-ink)]">
-            ✓ 모든 항목을 다 나눴어요
+          <p className="font-hand flex items-center justify-center gap-2 py-4 text-center text-[1.1rem] text-[var(--color-ink)]">
+            <IconSparkles className="h-5 w-5" /> 모든 항목을 다 나눴어요
           </p>
         ) : (
           <>
@@ -373,7 +374,7 @@ export default function AssignPage() {
             </ul>
             <div className="mt-4">
               <SketchButton variant="secondary" size="sm" onClick={distributeAll}>
-                <IconShuffle className="h-4 w-4" /> 남은 항목 모두에게 똑같이
+                <IconCalculator className="h-4 w-4" /> 남은 항목 모두에게 똑같이
               </SketchButton>
             </div>
           </>

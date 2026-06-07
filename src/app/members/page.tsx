@@ -19,6 +19,7 @@ import {
   IconCheck,
   IconPencil,
   IconAlert,
+  IconArrowLeft,
 } from "@/components/sketch";
 
 type Member = { id: string; name: string };
@@ -176,11 +177,20 @@ export default function MembersPage() {
       </SketchFrame>
 
       {/* nav */}
-      <div className="mt-12 flex items-center justify-end gap-4">
-        {blockReason && <span className="font-hand text-[0.98rem] text-[var(--color-ash)]">{blockReason}</span>}
-        <SketchButton onClick={() => router.push("/review")} disabled={!canProceed}>
-          항목 확인
-        </SketchButton>
+      <div className="mt-12 flex items-center justify-between gap-4">
+        <button
+          type="button"
+          onClick={() => router.push("/")}
+          className="inline-flex items-center gap-1.5 font-hand text-[1.02rem] text-[var(--color-graphite)] transition-colors hover:text-[var(--color-ink)]"
+        >
+          <IconArrowLeft className="h-4 w-4" /> 이전
+        </button>
+        <div className="flex items-center gap-4">
+          {blockReason && <span className="font-hand text-[0.98rem] text-[var(--color-ash)]">{blockReason}</span>}
+          <SketchButton onClick={() => router.push("/review")} disabled={!canProceed}>
+            항목 확인
+          </SketchButton>
+        </div>
       </div>
     </div>
   );
