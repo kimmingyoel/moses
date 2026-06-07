@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  useEffect,
   useId,
   useLayoutEffect,
   useMemo,
@@ -10,19 +9,33 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { buildHandDrawnRect, buildHandDrawnUnderline, type HandDrawnPaths } from "./handDrawn";
+import {
+  buildHandDrawnRect,
+  buildHandDrawnUnderline,
+  buildScribbleFill,
+  type HandDrawnPaths,
+} from "./handDrawn";
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/*  SketchRect — a measured div that paints a hand-drawn outline behind it.   */
+/*  Palette — only the four grays from design_assets/color palette.svg.        */
+/*  Surfaces are paper (#f5f5f5); the only "fill" beyond paper is ink.         */
 /* ────────────────────────────────────────────────────────────────────────── */
+
+export const PAPER = "#f5f5f5";
+export const INK = "#262626";
 
 type Tone = "ink" | "soft" | "muted";
 
 const STROKE: Record<Tone, string> = {
   ink: "#262626",
-  soft: "#585858",
+  soft: "#666666",
   muted: "#9e9e9e",
 };
+
+/* ────────────────────────────────────────────────────────────────────────── */
+/*  SketchRectVisual — a measured div that paints a hand-drawn outline behind  */
+/*  whatever the parent renders. Parent must be position:relative.             */
+/* ────────────────────────────────────────────────────────────────────────── */
 
 type SketchRectProps = {
   radius?: number;
@@ -34,31 +47,16 @@ type SketchRectProps = {
   seed?: number;
   dashed?: boolean;
   className?: string;
-  /** When true, the visual hides the stroke (used by SketchCheckbox interior). */
+  /** Fill the interior with diagonal pen hatching (Scribble=True look). */
+  scribble?: boolean;
+  scribbleColor?: Tone;
+  /** Hide the outline stroke (used by checkbox interior). */
   hideStroke?: boolean;
 };
 
-/**
- * Absolute-positioned SVG layer that paints a hand-drawn rectangle behind
- * whatever the parent renders. Parent must be `position: relative`.
- *
- * Strategy:
- *   1. Synchronously measure the parent once on mount in useLayoutEffect.
- *   2. Generate the hand-drawn path from that measurement and fix it.
- *   3. Render the SVG with `width="100%" height="100%"` and the original
- *      measurement as the viewBox — preserveAspectRatio="none" lets the
- *      SVG stretch to whatever size the parent grows or shrinks to, without
- *      ever regenerating the path. `vector-effect="non-scaling-stroke"`
- *      keeps the stroke width pixel-stable through that stretch.
- *
- * Why this matters: the earlier ResizeObserver-driven redraw rebuilt the
- * randomized path on every parent size change, which on hover transforms,
- * detail expansions, and Safari animations caused both visible jitter
- * ("달그락") and wasted re-renders.
- */
 export function SketchRectVisual({
   radius = 14,
-  fill = "#ffffff",
+  fill = PAPER,
   stroke = "ink",
   strokeWidth = 2.5,
   shadow = "none",
@@ -66,18 +64,11 @@ export function SketchRectVisual({
   seed = 7,
   dashed = false,
   className = "",
+  scribble = false,
+  scribbleColor = "ink",
   hideStroke = false,
 }: SketchRectProps) {
   const ref = useRef<HTMLDivElement>(null);
-  // The fallback path is a clean rounded rectangle (zero wobble). It renders
-  // identically on server and client, so the SVG is present in the SSR HTML
-  // — critical for Next.js back-navigation, which restores the cached HTML
-  // without re-running useLayoutEffect / ref callbacks. Once measurement
-  // succeeds we swap in the real wobbly path. Until then the user sees a
-  // calm rounded outline instead of a missing border. The fallback's viewBox
-  // is small (4×4) so preserveAspectRatio="none" stretches it cleanly to any
-  // container size; corners become elliptical but never "crumpled" because
-  // there is no per-segment displacement to amplify.
   const fallback = useMemo<{ vb: { w: number; h: number }; paths: HandDrawnPaths }>(
     () => ({
       vb: { w: 4, h: 4 },
@@ -85,16 +76,11 @@ export function SketchRectVisual({
     }),
     [seed],
   );
-  const [data, setData] = useState<{ vb: { w: number; h: number }; paths: HandDrawnPaths }>(fallback);
-  // Tracks whether useLayoutEffect has produced a real measurement. While
-  // false we're still painting the 4×4 fallback viewBox stretched via
-  // preserveAspectRatio="none" — applying the shadow filter in that state
-  // makes feOffset/feGaussianBlur (in userSpaceOnUse units) blow up into
-  // a huge dark blob, since e.g. dy=3 viewBox-units becomes hundreds of
-  // pixels once the viewBox is stretched to fit the parent.
+  const [data, setData] = useState(fallback);
   const [measured, setMeasured] = useState(false);
   const uid = useId().replace(/:/g, "");
   const shadowId = `sk-shadow-${uid}`;
+  const clipId = `sk-clip-${uid}`;
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -103,30 +89,14 @@ export function SketchRectVisual({
     let lastSize: { w: number; h: number } | null = null;
     const apply = (w: number, h: number) => {
       if (w < 2 || h < 2) return false;
-      // Skip insignificant size changes — hover translate, small
-      // detail-expansion frames, sub-pixel layout drift. Without this filter
-      // we'd rebuild the path on every transform and end up with the
-      // "달그락" jitter the visual was designed to avoid. Threshold: <4px on
-      // both axes AND <8% relative change.
       if (lastSize) {
         const dw = Math.abs(w - lastSize.w);
         const dh = Math.abs(h - lastSize.h);
-        if (
-          dw < 4 &&
-          dh < 4 &&
-          dw / lastSize.w < 0.08 &&
-          dh / lastSize.h < 0.08
-        ) {
+        if (dw < 4 && dh < 4 && dw / lastSize.w < 0.08 && dh / lastSize.h < 0.08) {
           return true;
         }
       }
-      const paths = buildHandDrawnRect({
-        width: w,
-        height: h,
-        radius,
-        wobble,
-        seed,
-      });
+      const paths = buildHandDrawnRect({ width: w, height: h, radius, wobble, seed });
       setData({ vb: { w, h }, paths });
       setMeasured(true);
       lastSize = { w, h };
@@ -136,8 +106,6 @@ export function SketchRectVisual({
       const rect = el.getBoundingClientRect();
       return apply(rect.width, rect.height);
     };
-    // Initial sync measurement. If layout isn't settled (view transitions,
-    // off-screen, font swap), poll up to ~5 s of rAF frames to catch it.
     if (!measure()) {
       let attempts = 0;
       const tick = () => {
@@ -148,12 +116,6 @@ export function SketchRectVisual({
       };
       rafId = requestAnimationFrame(tick);
     }
-    // Persistent ResizeObserver — re-measures when the parent's size
-    // genuinely changes (async-loaded list items growing the Sheet 3-4×
-    // taller, font swap, etc.). We read the entry's contentRect directly:
-    // during a view-transition Chrome can mask getBoundingClientRect to
-    // 0×0, but RO still delivers the element's real box size. Small jitter
-    // is filtered above so hover/animation are no-ops.
     const ro = new ResizeObserver((entries) => {
       const entry = entries[entries.length - 1];
       if (!entry) return;
@@ -167,88 +129,101 @@ export function SketchRectVisual({
     };
   }, [radius, wobble, seed]);
 
+  const scribblePath = useMemo(
+    () =>
+      scribble && measured
+        ? buildScribbleFill({
+            width: data.vb.w,
+            height: data.vb.h,
+            gap: 7,
+            wobble: 1,
+            seed: seed + 3,
+          })
+        : "",
+    [scribble, measured, data.vb.w, data.vb.h, seed],
+  );
+
   const strokeColor = STROKE[stroke];
 
   return (
-    <div
-      ref={ref}
-      aria-hidden
-      className={`pointer-events-none absolute inset-0 ${className}`}
-    >
-      {data && (
-        <svg
-          width="100%"
-          height="100%"
-          viewBox={`0 0 ${data.vb.w} ${data.vb.h}`}
-          preserveAspectRatio="none"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          // overflow:visible lets the stroke sit ON the element edge instead
-          // of being clipped half-out — so the visual outline lines up with
-          // the hit area of buttons and cards. The parent's overflow-hidden
-          // still clips the rest of the SVG.
-          style={{ display: "block", overflow: "visible" }}
-        >
-          {shadow !== "none" && measured && (
-            <defs>
-              <filter
-                id={shadowId}
-                x="-2%"
-                y="-2%"
-                width="104%"
-                height="108%"
-              >
+    <div ref={ref} aria-hidden className={`pointer-events-none absolute inset-0 ${className}`}>
+      <svg
+        width="100%"
+        height="100%"
+        viewBox={`0 0 ${data.vb.w} ${data.vb.h}`}
+        preserveAspectRatio="none"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ display: "block", overflow: "visible" }}
+      >
+        {(shadow !== "none" || scribble) && measured && (
+          <defs>
+            {shadow !== "none" && (
+              <filter id={shadowId} x="-2%" y="-2%" width="104%" height="108%">
                 <feOffset dx="0" dy={shadow === "drop" ? 3 : 2} />
                 <feGaussianBlur stdDeviation={shadow === "drop" ? 0.4 : 0.2} />
                 <feColorMatrix
                   type="matrix"
-                  values={`0 0 0 0 0.15  0 0 0 0 0.15  0 0 0 0 0.15  0 0 0 ${shadow === "drop" ? 0.22 : 0.16} 0`}
+                  values={`0 0 0 0 0.149  0 0 0 0 0.149  0 0 0 0 0.149  0 0 0 ${shadow === "drop" ? 0.2 : 0.15} 0`}
                 />
                 <feMerge>
                   <feMergeNode />
                   <feMergeNode in="SourceGraphic" />
                 </feMerge>
               </filter>
-            </defs>
-          )}
+            )}
+            {scribble && (
+              <clipPath id={clipId}>
+                <path d={data.paths.fill} />
+              </clipPath>
+            )}
+          </defs>
+        )}
 
-          {/* Fill (with optional shadow filter — suppressed while still on
-              the SSR fallback viewBox, see `measured` comment above). */}
-          <path
-            d={data.paths.fill}
-            fill={fill}
-            filter={shadow !== "none" && measured ? `url(#${shadowId})` : undefined}
-          />
+        <path
+          d={data.paths.fill}
+          fill={fill}
+          filter={shadow !== "none" && measured ? `url(#${shadowId})` : undefined}
+        />
 
-          {!hideStroke && (
-            <g
-              stroke={strokeColor}
-              strokeWidth={strokeWidth}
+        {scribble && scribblePath && (
+          <g clipPath={`url(#${clipId})`}>
+            <path
+              d={scribblePath}
+              stroke={STROKE[scribbleColor]}
+              strokeWidth={1.7}
               strokeLinecap="round"
-              strokeLinejoin="round"
               fill="none"
-              strokeDasharray={dashed ? "9 7" : undefined}
               vectorEffect="non-scaling-stroke"
-            >
-              {data.paths.edges.map((d, i) =>
-                d ? <path key={`edge-${i}`} d={d} vectorEffect="non-scaling-stroke" /> : null,
-              )}
-              {data.paths.corners.map((d, i) =>
-                // Skip empty corner paths. A zero-length stroked path with
-                // strokeLinecap="round" paints a full circle in Safari, which
-                // — combined with viewBox stretch — becomes a giant amoeba.
-                d ? <path key={`corner-${i}`} d={d} vectorEffect="non-scaling-stroke" /> : null,
-              )}
-            </g>
-          )}
-        </svg>
-      )}
+            />
+          </g>
+        )}
+
+        {!hideStroke && (
+          <g
+            stroke={strokeColor}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+            strokeDasharray={dashed ? "9 7" : undefined}
+            vectorEffect="non-scaling-stroke"
+          >
+            {data.paths.edges.map((d, i) =>
+              d ? <path key={`edge-${i}`} d={d} vectorEffect="non-scaling-stroke" /> : null,
+            )}
+            {data.paths.corners.map((d, i) =>
+              d ? <path key={`corner-${i}`} d={d} vectorEffect="non-scaling-stroke" /> : null,
+            )}
+          </g>
+        )}
+      </svg>
     </div>
   );
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/*  SketchFrame — wrapper that paints SketchRectVisual behind its children.   */
+/*  SketchFrame — wrapper that paints SketchRectVisual behind its children.    */
 /* ────────────────────────────────────────────────────────────────────────── */
 
 type SketchFrameProps = Omit<SketchRectProps, "className" | "hideStroke"> & {
@@ -269,6 +244,8 @@ export function SketchFrame({
   wobble,
   seed,
   dashed,
+  scribble,
+  scribbleColor,
   className = "",
   contentClassName = "",
   children,
@@ -288,6 +265,8 @@ export function SketchFrame({
         wobble={wobble}
         seed={seed}
         dashed={dashed}
+        scribble={scribble}
+        scribbleColor={scribbleColor}
       />
       <div className={`relative ${contentClassName}`}>{children}</div>
     </Tag>
@@ -295,7 +274,7 @@ export function SketchFrame({
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/*  SketchButton                                                              */
+/*  SketchButton                                                               */
 /* ────────────────────────────────────────────────────────────────────────── */
 
 type SketchButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -303,6 +282,7 @@ type SketchButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   size?: "sm" | "md" | "lg";
   rounded?: boolean;
   fullWidth?: boolean;
+  scribble?: boolean;
 };
 
 export function SketchButton({
@@ -310,6 +290,7 @@ export function SketchButton({
   size = "md",
   rounded = true,
   fullWidth = false,
+  scribble = false,
   className = "",
   disabled,
   children,
@@ -317,29 +298,23 @@ export function SketchButton({
 }: SketchButtonProps) {
   const sizing =
     size === "sm"
-      ? "min-h-[36px] px-3.5 text-[0.98rem] gap-1.5"
+      ? "min-h-[38px] px-4 text-[1rem] gap-1.5"
       : size === "lg"
-        ? "min-h-[52px] px-7 text-[1.22rem] gap-2.5"
-        : "min-h-[44px] px-5 text-[1.08rem] gap-2";
+        ? "min-h-[54px] px-8 text-[1.25rem] gap-2.5"
+        : "min-h-[46px] px-6 text-[1.1rem] gap-2";
 
-  const radius = rounded ? (size === "sm" ? 18 : size === "lg" ? 26 : 22) : 10;
+  const radius = rounded ? (size === "sm" ? 18 : size === "lg" ? 27 : 22) : 10;
 
   const isPrimary = variant === "primary";
   const isGhost = variant === "ghost";
 
-  const fill = disabled
-    ? "#d4d4d4"
-    : isPrimary
-      ? "#262626"
-      : isGhost
-        ? "transparent"
-        : "#ffffff";
+  const fill = disabled ? PAPER : isPrimary ? INK : isGhost ? "transparent" : PAPER;
 
   const textCls = disabled
-    ? "text-[#7a7a7a]"
+    ? "text-[var(--color-ash)]"
     : isPrimary
-      ? "text-white"
-      : "text-[#262626]";
+      ? "text-[var(--color-paper)]"
+      : "text-[var(--color-ink)]";
 
   return (
     <button
@@ -350,7 +325,7 @@ export function SketchButton({
       } ${textCls} font-hand transition-transform duration-100 ${
         disabled
           ? "cursor-not-allowed"
-          : "hover:-translate-y-[1px] active:translate-y-[1px]"
+          : "hover:-translate-y-[1.5px] active:translate-y-[1px]"
       } ${className}`}
       {...rest}
     >
@@ -359,8 +334,10 @@ export function SketchButton({
         fill={fill}
         stroke={disabled ? "muted" : "ink"}
         shadow={isGhost || disabled ? "none" : "drop"}
-        wobble={0.5}
+        wobble={0.48}
         strokeWidth={2.4}
+        scribble={scribble && !disabled}
+        scribbleColor="ink"
         seed={size === "sm" ? 5 : 11}
       />
       <span className="relative inline-flex items-center justify-center gap-2 whitespace-nowrap">
@@ -371,13 +348,10 @@ export function SketchButton({
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/*  SketchInput                                                               */
+/*  SketchInput                                                                */
 /* ────────────────────────────────────────────────────────────────────────── */
 
-type SketchInputProps = Omit<
-  React.InputHTMLAttributes<HTMLInputElement>,
-  "size"
-> & {
+type SketchInputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"> & {
   size?: "sm" | "md" | "lg";
   inputClassName?: string;
   align?: "left" | "center" | "right";
@@ -392,38 +366,33 @@ export function SketchInput({
   ref,
   ...rest
 }: SketchInputProps) {
-  const height =
-    size === "sm" ? "h-[40px]" : size === "lg" ? "h-[52px]" : "h-[46px]";
+  const height = size === "sm" ? "h-[42px]" : size === "lg" ? "h-[54px]" : "h-[48px]";
   const fontSize =
-    size === "sm" ? "text-[1.0rem]" : size === "lg" ? "text-[1.18rem]" : "text-[1.08rem]";
+    size === "sm" ? "text-[1.02rem]" : size === "lg" ? "text-[1.2rem]" : "text-[1.1rem]";
   const alignCls =
-    align === "right"
-      ? "text-right"
-      : align === "center"
-        ? "text-center"
-        : "text-left";
+    align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left";
 
   return (
     <div className={`relative ${height} ${className}`}>
       <SketchRectVisual
-        radius={10}
-        fill="#ffffff"
+        radius={12}
+        fill={PAPER}
         stroke="ink"
-        shadow="soft"
-        wobble={0.5}
-        strokeWidth={2.4}
+        shadow="none"
+        wobble={0.45}
+        strokeWidth={2.3}
       />
       <input
         ref={ref}
         {...rest}
-        className={`relative h-full w-full bg-transparent px-3.5 font-hand text-[#1a1a1a] outline-none placeholder:text-[#9e9e9e] ${fontSize} ${alignCls} ${inputClassName}`}
+        className={`relative h-full w-full bg-transparent px-4 font-hand text-[var(--color-ink)] outline-none placeholder:text-[var(--color-ash)] ${fontSize} ${alignCls} ${inputClassName}`}
       />
     </div>
   );
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/*  SketchCheckbox                                                            */
+/*  SketchCheckbox                                                             */
 /* ────────────────────────────────────────────────────────────────────────── */
 
 type SketchCheckboxProps = {
@@ -454,10 +423,10 @@ export function SketchCheckbox({
         disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
       } ${className}`}
     >
-      <span className="relative mt-0.5 inline-block h-[22px] w-[22px] shrink-0">
+      <span className="relative mt-0.5 inline-block h-[24px] w-[24px] shrink-0">
         <SketchRectVisual
-          radius={4}
-          fill={checked ? "#262626" : "#ffffff"}
+          radius={5}
+          fill={checked ? INK : PAPER}
           stroke="ink"
           shadow={checked ? "drop" : "soft"}
           wobble={0.45}
@@ -465,14 +434,10 @@ export function SketchCheckbox({
           seed={checked ? 17 : 29}
         />
         {checked && (
-          <svg
-            aria-hidden
-            viewBox="0 0 22 22"
-            className="absolute inset-0 h-full w-full"
-          >
+          <svg aria-hidden viewBox="0 0 24 24" className="absolute inset-0 h-full w-full">
             <path
-              d="M5 11.5 Q 7.5 14, 9 16 Q 12 11.5, 17 6"
-              stroke="#ffffff"
+              d="M5 12 Q 8 15, 10 17 Q 13 11, 18 6"
+              stroke={PAPER}
               strokeWidth="2.6"
               fill="none"
               strokeLinecap="round"
@@ -492,12 +457,10 @@ export function SketchCheckbox({
       {(label || description) && (
         <span className="leading-snug">
           {label && (
-            <span className="block font-hand text-[1.04rem] text-[#262626]">
-              {label}
-            </span>
+            <span className="block font-hand text-[1.05rem] text-[var(--color-ink)]">{label}</span>
           )}
           {description && (
-            <span className="block font-hand text-[0.92rem] text-[#7a7a7a]">
+            <span className="block font-note text-[0.95rem] text-[var(--color-graphite)]">
               {description}
             </span>
           )}
@@ -508,7 +471,7 @@ export function SketchCheckbox({
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/*  SketchUnderline — used for editable cells.                                */
+/*  SketchUnderline                                                            */
 /* ────────────────────────────────────────────────────────────────────────── */
 
 export function SketchUnderline({
@@ -535,13 +498,7 @@ export function SketchUnderline({
     <div ref={ref} className={`pointer-events-none ${className}`}>
       {d && (
         <svg width={w} height={6} viewBox={`0 0 ${w} 6`} fill="none">
-          <path
-            d={d}
-            stroke="#262626"
-            strokeWidth={2}
-            strokeLinecap="round"
-            fill="none"
-          />
+          <path d={d} stroke={INK} strokeWidth={2} strokeLinecap="round" fill="none" />
         </svg>
       )}
     </div>
@@ -549,11 +506,11 @@ export function SketchUnderline({
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/*  SketchCircle — used for icon buttons / badges.                            */
+/*  SketchCircleVisual                                                         */
 /* ────────────────────────────────────────────────────────────────────────── */
 
 export function SketchCircleVisual({
-  fill = "#ffffff",
+  fill = PAPER,
   stroke = "ink",
   strokeWidth = 2.4,
   shadow = "none",
@@ -567,7 +524,6 @@ export function SketchCircleVisual({
   wobble?: number;
   seed?: number;
 }) {
-  // Render circle as a SketchRect with very large radius — it becomes a pill/circle.
   return (
     <SketchRectVisual
       radius={9999}
@@ -579,51 +535,4 @@ export function SketchCircleVisual({
       seed={seed}
     />
   );
-}
-
-/* ────────────────────────────────────────────────────────────────────────── */
-/*  StepIndicator — small "STEP n / 5" hand-drawn divider.                    */
-/* ────────────────────────────────────────────────────────────────────────── */
-
-export function StepIndicator({
-  current,
-  total = 5,
-  className = "",
-}: {
-  current: number;
-  total?: number;
-  className?: string;
-}) {
-  return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      <span className="font-data text-[0.92rem] tracking-[0.05em] text-[#7a7a7a]">
-        STEP {current} / {total}
-      </span>
-      <span className="block h-[2px] flex-1">
-        <span className="block h-full w-full bg-[repeating-linear-gradient(90deg,#262626_0_5px,transparent_5px_10px)] opacity-30" />
-      </span>
-    </div>
-  );
-}
-
-/* ────────────────────────────────────────────────────────────────────────── */
-/*  Re-export hook for client edges measurement (used by other components).   */
-/* ────────────────────────────────────────────────────────────────────────── */
-
-export function useMeasured() {
-  const ref = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState({ w: 0, h: 0 });
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const update = () => {
-      const r = el.getBoundingClientRect();
-      setSize({ w: r.width, h: r.height });
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  return { ref, size };
 }

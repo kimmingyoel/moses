@@ -10,21 +10,20 @@ import {
 } from "@/lib/member-input";
 import { loadSession, saveSession } from "@/lib/session";
 import {
-  Sheet,
   SketchFrame,
   SketchButton,
   SketchInput,
-  StepIndicator,
+  WavyDivider,
+  Avatar,
   IconClose,
   IconCheck,
   IconPencil,
+  IconAlert,
 } from "@/components/sketch";
 
 type Member = { id: string; name: string };
 
-const seedMembers: Member[] = [
-  { id: "member_self", name: "나" },
-];
+const seedMembers: Member[] = [{ id: "member_self", name: "나" }];
 
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>(seedMembers);
@@ -67,39 +66,62 @@ export default function MembersPage() {
     setMembers((m) => {
       const names = limitMemberNamesForAdd(rawName, m.length);
       if (names.length === 0) return m;
-      return [
-        ...m,
-        ...names.map((name) => ({ id: crypto.randomUUID(), name })),
-      ];
+      return [...m, ...names.map((name) => ({ id: crypto.randomUUID(), name }))];
     });
     setValue("");
     inputRef.current?.focus();
   };
 
-  const removeMember = (id: string) =>
-    setMembers((m) => m.filter((x) => x.id !== id));
+  const removeMember = (id: string) => setMembers((m) => m.filter((x) => x.id !== id));
 
-  const canAddMembers =
-    parseMemberNames(value).length > 0 && members.length < MAX_MEMBERS;
-  const canProceed = hasReceipt && members.length >= 2;
+  const canAddMembers = parseMemberNames(value).length > 0 && members.length < MAX_MEMBERS;
+  const enoughMembers = members.length >= 2;
+  const canProceed = hasReceipt && enoughMembers;
+
+  const blockReason = !hasReceipt
+    ? isExtracting
+      ? "영수증을 다 읽으면 넘어갈 수 있어요."
+      : "영수증 분석을 기다리고 있어요."
+    : !enoughMembers
+      ? "한 명 더 적어 주세요. (최소 2명)"
+      : null;
 
   return (
-    <div className="pb-32">
-      <Sheet>
-        <StepIndicator current={2} />
+    <div className="fade-in mx-auto w-full max-w-[460px]">
+      <h1 className="font-hand text-[2rem] leading-tight text-[var(--color-ink)]">누구랑 나눠 낼까요?</h1>
 
-        <div className="mt-5 mb-7">
-          <h1 className="font-hand text-[2.1rem] leading-tight text-[var(--color-ink-deep)] sm:text-[2.4rem]">
-            함께 정산할 사람들
-          </h1>
-          <p className="font-hand mt-2 text-lg text-[var(--color-ink-soft)]">
-            정산에 참여할 사람의 이름을 적어 주세요. 최대 20명까지 추가할 수 있어요.
-          </p>
-        </div>
+      {/* analysis status */}
+      <div className="mt-4 flex items-center gap-2.5">
+        {extractionError ? (
+          <>
+            <IconAlert className="h-5 w-5 shrink-0 text-[var(--color-ink)]" />
+            <span className="font-hand text-[1.02rem] text-[var(--color-ink)]">영수증을 읽지 못했어요</span>
+          </>
+        ) : hasReceipt ? (
+          <>
+            <IconCheck className="h-5 w-5 shrink-0 text-[var(--color-ink)]" />
+            <span className="font-hand text-[1.02rem] text-[var(--color-graphite)]">영수증을 다 읽었어요</span>
+          </>
+        ) : (
+          <>
+            <IconPencil className="h-5 w-5 shrink-0 animate-pencil text-[var(--color-ink)]" />
+            <span className="font-hand animate-loading-shimmer text-[1.02rem]">영수증을 읽고 있어요…</span>
+          </>
+        )}
+      </div>
 
-        {/* Input row — input gets all remaining space; min-w-0 lets it shrink
-            below its placeholder width on narrow viewports. */}
-        <div className="mb-6 flex items-stretch gap-2.5">
+      {/* members card — add + roster grouped together */}
+      <SketchFrame
+        radius={20}
+        fill="#f5f5f5"
+        stroke="ink"
+        shadow="soft"
+        wobble={0.5}
+        strokeWidth={2.4}
+        className="mt-7"
+        contentClassName="px-5 py-5 sm:px-6"
+      >
+        <div className="flex items-stretch gap-2.5">
           <SketchInput
             ref={inputRef}
             value={value}
@@ -108,195 +130,57 @@ export default function MembersPage() {
               if (!submitAfterCompositionRef.current) return;
               submitAfterCompositionRef.current = false;
               const committedValue = e.currentTarget.value;
-
-              window.setTimeout(() => {
-                addMember(inputRef.current?.value ?? committedValue);
-              }, 0);
+              window.setTimeout(() => addMember(inputRef.current?.value ?? committedValue), 0);
             }}
             onKeyDown={(e) => {
               if (e.key !== "Enter") return;
-
               if (e.nativeEvent.isComposing || e.keyCode === 229) {
                 submitAfterCompositionRef.current = true;
                 return;
               }
-
               e.preventDefault();
               addMember(e.currentTarget.value);
             }}
-            placeholder="이름을 입력하세요"
+            placeholder="이름 입력 (쉼표로 여러 명)"
             maxLength={MAX_MEMBER_INPUT_LENGTH}
             className="min-w-0 flex-1"
           />
-          <SketchButton
-            onClick={() => addMember()}
-            disabled={!canAddMembers}
-            className="shrink-0"
-          >
+          <SketchButton onClick={() => addMember()} disabled={!canAddMembers} className="shrink-0">
             추가
           </SketchButton>
         </div>
 
-        {/* Member count */}
-        <div className="mb-4 flex items-center justify-between">
-          <span className="font-hand text-[var(--color-ink-soft)]">
-            지금까지{" "}
-            <span className="font-data text-xl text-[var(--color-ink-deep)]">
-              {members.length}
-            </span>
-            명
-          </span>
-          {members.length >= MAX_MEMBERS && (
-            <span className="font-hand text-base text-[var(--color-ink-mute)]">
-              (최대 인원에 도달했어요)
-            </span>
-          )}
-        </div>
+        <WavyDivider tone="muted" className="my-4" />
 
-        {/* Members */}
-        {members.length === 0 ? (
-          <EmptyMembers />
-        ) : (
-          <ul className="flex flex-wrap gap-3">
-            {members.map((m) => (
-              <li key={m.id}>
-                <MemberCard
-                  name={m.name}
-                  onRemove={() => removeMember(m.id)}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-      </Sheet>
-
-      {/* Bottom OCR banner */}
-      <OcrBanner
-        done={hasReceipt}
-        extracting={isExtracting}
-        canProceed={canProceed}
-        error={extractionError}
-        onNext={() => router.push("/review")}
-      />
-    </div>
-  );
-}
-
-/* ──────────────── Sub components ──────────────── */
-
-function MemberCard({ name, onRemove }: { name: string; onRemove: () => void }) {
-  return (
-    <SketchFrame
-      radius={18}
-      shadow="soft"
-      contentClassName="inline-flex items-center gap-2 px-4 py-2 pr-2.5"
-      className="inline-block"
-    >
-      <span className="font-hand text-xl text-[var(--color-ink-deep)]">
-        {name}
-      </span>
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label={`${name} 삭제`}
-        className="ml-1 grid h-6 w-6 place-items-center rounded-full text-[var(--color-ink-soft)] transition-colors hover:bg-[var(--color-ink-line)]/60 hover:text-[var(--color-ink)]"
-      >
-        <IconClose className="h-4 w-4" />
-      </button>
-    </SketchFrame>
-  );
-}
-
-function EmptyMembers() {
-  return (
-    <SketchFrame
-      radius={18}
-      fill="#fafafa"
-      dashed
-      stroke="muted"
-      contentClassName="grid place-items-center px-6 py-8 text-center"
-    >
-      <p className="font-hand text-lg text-[var(--color-ink-soft)]">
-        아직 추가된 사람이 없어요.
-        <br />
-        위에서 이름을 적고 <span className="font-data">추가</span> 버튼을 눌러보세요.
-      </p>
-    </SketchFrame>
-  );
-}
-
-function OcrBanner({
-  done,
-  extracting,
-  canProceed,
-  error,
-  onNext,
-}: {
-  done: boolean;
-  extracting: boolean;
-  canProceed: boolean;
-  error: string | null;
-  onNext: () => void;
-}) {
-  return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30">
-      <div className="mx-auto w-full max-w-[760px] px-5 pb-5 sm:px-6 sm:pb-7">
-        <SketchFrame
-          radius={20}
-          shadow="drop"
-          fill="#ffffff"
-          className="pointer-events-auto transition-all duration-300"
-          contentClassName="flex items-center gap-4 px-5 py-4 sm:px-7 sm:py-5"
-        >
-          <div className="shrink-0 text-[var(--color-ink-deep)]">
-              {done ? (
-                <IconCheck className="h-7 w-7" />
-            ) : (
-              <IconPencil className="h-7 w-7 animate-pencil" />
-            )}
-          </div>
-
-          <div className="min-w-0 flex-1 leading-tight">
-            <p
-              className={`font-hand text-lg sm:text-xl ${
-                done || !extracting
-                  ? "text-[var(--color-ink-deep)]"
-                  : "animate-loading-shimmer"
+        <ul className="flex flex-col">
+          {members.map((m, i) => (
+            <li
+              key={m.id}
+              className={`flex items-center gap-3 py-2.5 ${
+                i > 0 ? "border-t border-dashed border-[var(--color-ash)]/40" : ""
               }`}
             >
-              {done
-                ? "영수증 분석 완료!"
-                : extracting
-                  ? "영수증 분석 중..."
-                  : "영수증을 먼저 올려주세요"}
-            </p>
-            {error ? (
-              <span className="font-hand block text-base text-[var(--color-ink)]">
-                {error}
-              </span>
-            ) : extracting ? (
-              <span className="font-hand block text-base text-[var(--color-ink-mute)]">
-                모든 품목을 꼼꼼하게 살펴보고 있어요...
-              </span>
-            ) : !done ? (
-              <span className="font-hand block text-base text-[var(--color-ink-mute)]">
-                먼저 영수증 파일을 선택해 주세요.
-              </span>
-            ) : (
-              <span className="font-hand block text-base text-[var(--color-ink-soft)]">
-                항목을 확인하러 가볼까요?
-              </span>
-            )}
-          </div>
+              <Avatar name={m.name} size={32} />
+              <span className="font-hand flex-1 text-[1.1rem] text-[var(--color-ink)]">{m.name}</span>
+              <button
+                type="button"
+                onClick={() => removeMember(m.id)}
+                aria-label={`${m.name} 빼기`}
+                className="grid h-6 w-6 place-items-center rounded-full text-[var(--color-ash)] transition-colors hover:text-[var(--color-ink)]"
+              >
+                <IconClose className="h-4 w-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      </SketchFrame>
 
-          <SketchButton
-            onClick={onNext}
-            disabled={!canProceed}
-            className="shrink-0"
-          >
-            {done ? "다음" : extracting ? "분석 중..." : "대기 중"}
-          </SketchButton>
-        </SketchFrame>
+      {/* nav */}
+      <div className="mt-12 flex items-center justify-end gap-4">
+        {blockReason && <span className="font-hand text-[0.98rem] text-[var(--color-ash)]">{blockReason}</span>}
+        <SketchButton onClick={() => router.push("/review")} disabled={!canProceed}>
+          항목 확인
+        </SketchButton>
       </div>
     </div>
   );

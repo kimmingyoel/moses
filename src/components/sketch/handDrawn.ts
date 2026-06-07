@@ -139,3 +139,146 @@ export function buildHandDrawnUnderline(width: number, seed = 9) {
   const segs = Math.max(4, Math.round(width / 28));
   return linePath(2, 3, width - 2, 3, rand, 1.2, segs, "x");
 }
+
+/**
+ * Horizontal wavy line at the vertical center of a `height`-tall box, mimicking
+ * the `design_assets/line` strokes. `roughness` scales the wobble amplitude;
+ * `double` returns a second parallel stroke a few pixels above for the
+ * Double=True variant.
+ */
+export function buildWavyLine(
+  width: number,
+  height = 6,
+  roughness = 1,
+  seed = 7,
+): string[] {
+  const rand = mulberry32(seed);
+  const w = Math.max(width, 8);
+  const amp = Math.min(Math.max(roughness, 0.2), 2.4);
+  const segs = Math.max(4, Math.round(w / 30));
+  const midY = height / 2;
+  return [linePath(2, midY, w - 2, midY, rand, amp, segs, "x")];
+}
+
+export function buildDoubleWavyLine(
+  width: number,
+  height = 11,
+  roughness = 1,
+  seed = 7,
+): string[] {
+  const rand = mulberry32(seed);
+  const w = Math.max(width, 8);
+  const amp = Math.min(Math.max(roughness, 0.2), 2.4);
+  const segs = Math.max(4, Math.round(w / 30));
+  const gap = Math.max(height - 4, 4);
+  const top = (height - gap) / 2;
+  return [
+    linePath(2, top, w - 2, top, rand, amp, segs, "x"),
+    linePath(2, top + gap, w - 2, top + gap, rand, amp, segs, "x"),
+  ];
+}
+
+/**
+ * Diagonal back-and-forth hatching that fills a rect — the "Scribble=True"
+ * look from the button assets. Returns a single continuous path so one stroke
+ * draws the whole scribble (like a pen never leaving the paper). Caller clips
+ * it to the rounded rect.
+ */
+export function buildScribbleFill({
+  width,
+  height,
+  gap = 7,
+  wobble = 1.1,
+  seed = 7,
+}: {
+  width: number;
+  height: number;
+  gap?: number;
+  wobble?: number;
+  seed?: number;
+}): string {
+  const w = Math.max(width, 4);
+  const h = Math.max(height, 4);
+  const rand = mulberry32(seed);
+  // Sweep 45° diagonals across the box. We parametrise by the x-intercept of
+  // each diagonal along the top/bottom edges and zig-zag up and down.
+  const out: string[] = [];
+  const span = w + h; // diagonal coverage
+  let first = true;
+  let dir = 1;
+  for (let c = -h; c <= w + h; c += gap) {
+    // A diagonal line going down-right: from (c, 0) to (c + h, h), clipped to box.
+    const ax = c;
+    const ay = 0;
+    const bx = c + h;
+    const by = h;
+    // Endpoints, alternating direction so the pen "returns".
+    const p1x = (dir > 0 ? ax : bx) + (rand() - 0.5) * wobble;
+    const p1y = (dir > 0 ? ay : by) + (rand() - 0.5) * wobble;
+    const p2x = (dir > 0 ? bx : ax) + (rand() - 0.5) * wobble;
+    const p2y = (dir > 0 ? by : ay) + (rand() - 0.5) * wobble;
+    if (first) {
+      out.push(`M ${p1x.toFixed(1)} ${p1y.toFixed(1)}`);
+      first = false;
+    } else {
+      out.push(`L ${p1x.toFixed(1)} ${p1y.toFixed(1)}`);
+    }
+    out.push(`L ${p2x.toFixed(1)} ${p2y.toFixed(1)}`);
+    dir *= -1;
+  }
+  void span;
+  return out.join(" ");
+}
+
+/**
+ * A hand-drawn curved arrow from `start` to `end` with a small two-stroke
+ * arrowhead at the end. `bend` curves the shaft (positive = bow one way).
+ * Returns shaft + the two head strokes.
+ */
+export function buildArrow({
+  x1,
+  y1,
+  x2,
+  y2,
+  bend = 0.3,
+  headLen = 12,
+}: {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  bend?: number;
+  headLen?: number;
+}): { shaft: string; head: string[] } {
+  const mx = (x1 + x2) / 2;
+  const my = (y1 + y2) / 2;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len = Math.hypot(dx, dy) || 1;
+  // Perpendicular offset for the control point → a gentle bow.
+  const nx = -dy / len;
+  const ny = dx / len;
+  const cx = mx + nx * bend * len;
+  const cy = my + ny * bend * len;
+  const shaft = `M ${x1.toFixed(1)} ${y1.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+
+  // Arrowhead: direction is the tangent at the end (from control point to end).
+  const tx = x2 - cx;
+  const ty = y2 - cy;
+  const tlen = Math.hypot(tx, ty) || 1;
+  const ux = tx / tlen;
+  const uy = ty / tlen;
+  const angle = Math.PI / 6; // 30°
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  // Two head strokes rotated ±angle from the reversed tangent.
+  const r1x = -(ux * cos - uy * sin);
+  const r1y = -(ux * sin + uy * cos);
+  const r2x = -(ux * cos + uy * sin);
+  const r2y = -(-ux * sin + uy * cos);
+  const head = [
+    `M ${x2.toFixed(1)} ${y2.toFixed(1)} L ${(x2 + r1x * headLen).toFixed(1)} ${(y2 + r1y * headLen).toFixed(1)}`,
+    `M ${x2.toFixed(1)} ${y2.toFixed(1)} L ${(x2 + r2x * headLen).toFixed(1)} ${(y2 + r2y * headLen).toFixed(1)}`,
+  ];
+  return { shaft, head };
+}

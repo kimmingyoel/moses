@@ -13,42 +13,24 @@ import { useRouter } from "next/navigation";
 import { createAssignableUnits } from "@/lib/receipt";
 import { loadSession, saveSession, type SplitSession } from "@/lib/session";
 import {
-  Sheet,
   SketchFrame,
   SketchRectVisual,
   SketchButton,
-  StepIndicator,
   Avatar,
+  Scrawl,
+  HintArrow,
   IconUndo,
   IconRedo,
   IconArrowLeft,
-  IconSparkle,
+  IconShuffle,
   IconCheck,
 } from "@/components/sketch";
 
-/* ──────────────── Types & seed data ──────────────── */
-
 type Member = { id: string; name: string };
-type Item = {
-  id: string;
-  name: string;
-  unitPrice: number;
-  totalQty: number;
-  unitIds: string[];
-};
-type Assignment = {
-  id: string;
-  itemId: string;
-  itemUnitId: string;
-  memberIds: string[];
-};
+type Item = { id: string; name: string; unitPrice: number; totalQty: number; unitIds: string[] };
+type Assignment = { id: string; itemId: string; itemUnitId: string; memberIds: string[] };
 
 const fmt = (n: number) => Math.round(n).toLocaleString("ko-KR");
-
-const itemsSeed = (id: string) =>
-  Array.from(id).reduce((sum, char) => sum + char.charCodeAt(0), 0);
-
-/* ──────────────── Page ──────────────── */
 
 export default function AssignPage() {
   const router = useRouter();
@@ -62,70 +44,33 @@ export default function AssignPage() {
   const [redoStack, setRedoStack] = useState<Assignment[][]>([]);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [, setHoveredMemberId] = useState<string | null>(null);
   const [previewMemberId, setPreviewMemberId] = useState<string | null>(null);
   const [draggingItemId, setDraggingItemId] = useState<string | null>(null);
   const [dropTargetMemberId, setDropTargetMemberId] = useState<string | null>(null);
-
   const [bumpedMemberIds, setBumpedMemberIds] = useState<Set<string>>(new Set());
   const bumpTimerRef = useRef<number | undefined>(undefined);
-  const hoverOpenTimerRef = useRef<number | undefined>(undefined);
-  const hoverCloseTimerRef = useRef<number | undefined>(undefined);
-  const suppressPreviewUntilRef = useRef(0);
+  const hoverTimerRef = useRef<number | undefined>(undefined);
+  const suppressPreviewRef = useRef(false);
+  const suppressTimerRef = useRef<number | undefined>(undefined);
 
   const triggerBump = useCallback((ids: string[]) => {
     setBumpedMemberIds(new Set(ids));
     if (bumpTimerRef.current) clearTimeout(bumpTimerRef.current);
-    bumpTimerRef.current = window.setTimeout(
-      () => setBumpedMemberIds(new Set()),
-      680
-    );
+    bumpTimerRef.current = window.setTimeout(() => setBumpedMemberIds(new Set()), 600);
   }, []);
-
-  const clearPreviewTimers = useCallback(() => {
-    if (hoverOpenTimerRef.current) clearTimeout(hoverOpenTimerRef.current);
-    if (hoverCloseTimerRef.current) clearTimeout(hoverCloseTimerRef.current);
-  }, []);
-
-  // Last-shown preview snapshot. We keep it around while the pointer is OFF
-  // a member card so the MemberPreview overlay's height stays anchored — if
-  // it unmounted on hover-out the grid cell would collapse and the rest of
-  // the Sheet would slide around. The snapshot is updated only from the
-  // hover handler's setTimeout (see handleMemberEnter below), never from
-  // an effect, so React 19's set-state-in-effect lint rule stays clean.
-  const [previewSnapshot, setPreviewSnapshot] = useState<{
-    member: Member;
-    items: { name: string; units: number; amount: number; splitNotes: string[] }[];
-    total: number;
-  } | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const stored = loadSession();
       setLoaded(true);
-      if (!stored) {
-        router.replace("/");
-        return;
-      }
-      if (!stored.confirmedReceipt) {
-        router.replace(stored.receipt ? "/review" : "/");
-        return;
-      }
-      if (stored.members.length < 2) {
-        router.replace("/members");
-        return;
-      }
-
+      if (!stored) return void router.replace("/");
+      if (!stored.confirmedReceipt) return void router.replace(stored.receipt ? "/review" : "/");
+      if (stored.members.length < 2) return void router.replace("/members");
       const assignable = createAssignableUnits(stored.confirmedReceipt.items);
-      if (
-        stored.confirmedReceipt.blockingErrors.length > 0 ||
-        assignable.blockingErrors.length > 0
-      ) {
-        router.replace("/review");
-        return;
+      if (stored.confirmedReceipt.blockingErrors.length > 0 || assignable.blockingErrors.length > 0) {
+        return void router.replace("/review");
       }
-
-      const unitById = new Map(assignable.units.map((unit) => [unit.id, unit]));
+      const unitById = new Map(assignable.units.map((u) => [u.id, u]));
       setSession(stored);
       setMembers(stored.members);
       setItems(
@@ -134,132 +79,102 @@ export default function AssignPage() {
           name: item.name,
           unitPrice: item.totalPrice / item.quantity,
           totalQty: item.quantity,
-          unitIds: assignable.units
-            .filter((unit) => unit.itemId === item.id)
-            .map((unit) => unit.id),
+          unitIds: assignable.units.filter((u) => u.itemId === item.id).map((u) => u.id),
         })),
       );
       setAssignments(
         stored.assignments
-          .map((assignment) => {
-            const unit = unitById.get(assignment.itemUnitId);
+          .map((a) => {
+            const unit = unitById.get(a.itemUnitId);
             if (!unit) return null;
-            return {
-              id: crypto.randomUUID(),
-              itemId: unit.itemId,
-              itemUnitId: assignment.itemUnitId,
-              memberIds: assignment.memberIds,
-            };
+            return { id: crypto.randomUUID(), itemId: unit.itemId, itemUnitId: a.itemUnitId, memberIds: a.memberIds };
           })
-          .filter((assignment): assignment is Assignment => assignment !== null),
+          .filter((a): a is Assignment => a !== null),
       );
     }, 0);
     return () => {
       window.clearTimeout(timer);
       if (bumpTimerRef.current) clearTimeout(bumpTimerRef.current);
-      clearPreviewTimers();
+      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
     };
-  }, [clearPreviewTimers, router]);
+  }, [router]);
 
-  // Index items by id once per change so the per-member / per-item lookups
-  // below stay O(1) instead of scanning the whole `items` array each time.
-  const itemById = useMemo(
-    () => new Map(items.map((item) => [item.id, item])),
-    [items],
-  );
-
-  // Count of already-assigned units per item, computed in a single pass over
-  // `assignments`. Turns `remainingQty` into an O(1) lookup rather than a fresh
-  // filter over every assignment for each item it's called on.
+  const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const usedByItem = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const a of assignments) {
-      counts.set(a.itemId, (counts.get(a.itemId) ?? 0) + 1);
-    }
-    return counts;
+    const c = new Map<string, number>();
+    for (const a of assignments) c.set(a.itemId, (c.get(a.itemId) ?? 0) + 1);
+    return c;
   }, [assignments]);
-
   const remainingQty = useCallback(
-    (itemId: string) => {
-      const item = itemById.get(itemId);
-      return item ? item.totalQty - (usedByItem.get(itemId) ?? 0) : 0;
+    (id: string) => {
+      const it = itemById.get(id);
+      return it ? it.totalQty - (usedByItem.get(id) ?? 0) : 0;
     },
-    [itemById, usedByItem]
+    [itemById, usedByItem],
   );
-
   const memberTotal = useCallback(
     (memberId: string) => {
       let total = 0;
       for (const a of assignments) {
         if (!a.memberIds.includes(memberId)) continue;
-        const item = itemById.get(a.itemId);
-        if (!item) continue;
-        total += item.unitPrice / a.memberIds.length;
+        const it = itemById.get(a.itemId);
+        if (it) total += it.unitPrice / a.memberIds.length;
       }
       return total;
     },
-    [assignments, itemById]
+    [assignments, itemById],
+  );
+  const memberBreakdown = useCallback(
+    (memberId: string) => {
+      const map = new Map<string, { name: string; units: number; amount: number; split: number }>();
+      for (const a of assignments) {
+        if (!a.memberIds.includes(memberId)) continue;
+        const it = itemById.get(a.itemId);
+        if (!it) continue;
+        const e = map.get(a.itemId) ?? { name: it.name, units: 0, amount: 0, split: 1 };
+        e.units += 1;
+        e.amount += it.unitPrice / a.memberIds.length;
+        e.split = Math.max(e.split, a.memberIds.length);
+        map.set(a.itemId, e);
+      }
+      return Array.from(map.values());
+    },
+    [assignments, itemById],
   );
 
-  const visibleItems = useMemo(
-    () => items.filter((i) => remainingQty(i.id) > 0),
-    [items, remainingQty]
-  );
-
+  const visibleItems = useMemo(() => items.filter((i) => remainingQty(i.id) > 0), [items, remainingQty]);
   const allAssigned = loaded && items.length > 0 && visibleItems.length === 0;
 
   const pushHistory = (prev: Assignment[]) => {
     setHistory((h) => [prev, ...h].slice(0, 50));
     setRedoStack([]);
   };
-
   const performAssign = (itemId: string, memberIds: string[]) => {
-    if (memberIds.length === 0) return;
-    if (remainingQty(itemId) <= 0) return;
+    if (memberIds.length === 0 || remainingQty(itemId) <= 0) return;
     const item = itemById.get(itemId);
     if (!item) return;
-    const usedUnitIds = new Set(
-      assignments
-        .filter((assignment) => assignment.itemId === itemId)
-        .map((assignment) => assignment.itemUnitId),
-    );
-    const itemUnitId = item.unitIds.find((id) => !usedUnitIds.has(id));
+    const used = new Set(assignments.filter((a) => a.itemId === itemId).map((a) => a.itemUnitId));
+    const itemUnitId = item.unitIds.find((id) => !used.has(id));
     if (!itemUnitId) return;
     pushHistory(assignments);
-    setAssignments((cur) => [
-      ...cur,
-      {
-        id: crypto.randomUUID(),
-        itemId,
-        itemUnitId,
-        memberIds: [...memberIds],
-      },
-    ]);
+    setAssignments((cur) => [...cur, { id: crypto.randomUUID(), itemId, itemUnitId, memberIds: [...memberIds] }]);
     triggerBump(memberIds);
     setSelected(new Set());
   };
-
   const distributeAll = () => {
     pushHistory(assignments);
-    const allMemberIds = members.map((m) => m.id);
+    const all = members.map((m) => m.id);
     const next: Assignment[] = [];
     for (const item of items) {
       const used = usedByItem.get(item.id) ?? 0;
-      const rem = item.totalQty - used;
-      for (let i = 0; i < rem; i++) {
-        next.push({
-          id: crypto.randomUUID(),
-          itemId: item.id,
-          itemUnitId: item.unitIds[used + i],
-          memberIds: allMemberIds,
-        });
+      for (let i = 0; i < item.totalQty - used; i++) {
+        next.push({ id: crypto.randomUUID(), itemId: item.id, itemUnitId: item.unitIds[used + i], memberIds: all });
       }
     }
     setAssignments((cur) => [...cur, ...next]);
-    triggerBump(allMemberIds);
+    triggerBump(all);
     setSelected(new Set());
   };
-
   const undo = () => {
     if (history.length === 0) return;
     setRedoStack((r) => [assignments, ...r].slice(0, 50));
@@ -267,7 +182,6 @@ export default function AssignPage() {
     setHistory((h) => h.slice(1));
     triggerBump(members.map((m) => m.id));
   };
-
   const redo = () => {
     if (redoStack.length === 0) return;
     setHistory((h) => [assignments, ...h].slice(0, 50));
@@ -275,373 +189,247 @@ export default function AssignPage() {
     setRedoStack((r) => r.slice(1));
     triggerBump(members.map((m) => m.id));
   };
-
-  const toggleSelect = (id: string) => {
+  const toggleSelect = (id: string) =>
     setSelected((s) => {
-      const next = new Set(s);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
     });
+
+  const suppressPreviewBriefly = () => {
+    suppressPreviewRef.current = true;
+    if (suppressTimerRef.current) clearTimeout(suppressTimerRef.current);
+    suppressTimerRef.current = window.setTimeout(() => {
+      suppressPreviewRef.current = false;
+    }, 600);
+    setPreviewMemberId(null);
+  };
+  const handleMemberEnter = (id: string) => {
+    if (draggingItemId !== null || suppressPreviewRef.current) return;
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = window.setTimeout(() => setPreviewMemberId(id), 90);
+  };
+  const handleMemberLeave = () => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = window.setTimeout(() => setPreviewMemberId(null), 100);
   };
 
-  const suppressPreviewBriefly = useCallback(() => {
-    suppressPreviewUntilRef.current = Date.now() + 650;
-    clearPreviewTimers();
-    setPreviewMemberId(null);
-  }, [clearPreviewTimers]);
-
-  const memberItemsBreakdown = useCallback(
-    (memberId: string) => {
-      const map = new Map<
-        string,
-        { name: string; units: number; amount: number; splitNotes: string[] }
-      >();
-      for (const a of assignments) {
-        if (!a.memberIds.includes(memberId)) continue;
-        const item = itemById.get(a.itemId);
-        if (!item) continue;
-        const share = item.unitPrice / a.memberIds.length;
-        const entry = map.get(a.itemId) ?? {
-          name: item.name,
-          units: 0,
-          amount: 0,
-          splitNotes: [],
-        };
-        entry.units += 1;
-        entry.amount += share;
-        if (a.memberIds.length > 1) {
-          entry.splitNotes.push(`${a.memberIds.length}명 나눔`);
-        }
-        map.set(a.itemId, entry);
-      }
-      return Array.from(map.values());
-    },
-    [assignments, itemById]
-  );
-
-  const handleMemberEnter = useCallback(
-    (id: string) => {
-      setHoveredMemberId(id);
-      if (draggingItemId !== null || Date.now() < suppressPreviewUntilRef.current) {
-        return;
-      }
-      if (hoverCloseTimerRef.current) clearTimeout(hoverCloseTimerRef.current);
-      if (hoverOpenTimerRef.current) clearTimeout(hoverOpenTimerRef.current);
-      hoverOpenTimerRef.current = window.setTimeout(() => {
-        setPreviewMemberId(id);
-        const m = members.find((mem) => mem.id === id);
-        if (m) {
-          setPreviewSnapshot({
-            member: m,
-            items: memberItemsBreakdown(id),
-            total: memberTotal(id),
-          });
-        }
-      }, previewMemberId === null ? 80 : 30);
-    },
-    [draggingItemId, previewMemberId, members, memberItemsBreakdown, memberTotal]
-  );
-
-  const handleMemberLeave = useCallback(() => {
-    setHoveredMemberId(null);
-    if (hoverOpenTimerRef.current) clearTimeout(hoverOpenTimerRef.current);
-    if (hoverCloseTimerRef.current) clearTimeout(hoverCloseTimerRef.current);
-    hoverCloseTimerRef.current = window.setTimeout(
-      () => setPreviewMemberId(null),
-      120
-    );
-  }, []);
+  const findMemberAtPoint = (x: number, y: number) =>
+    (document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-member-id]")?.dataset.memberId) ?? null;
 
   const handleItemClick = (itemId: string) => {
     if (selected.size === 0) return;
     performAssign(itemId, Array.from(selected));
   };
-
-  const findMemberAtPoint = useCallback((x: number, y: number) => {
-    const node = document.elementFromPoint(x, y);
-    const memberNode = node?.closest<HTMLElement>("[data-member-id]");
-    const id = memberNode?.dataset.memberId;
-    return id ?? null;
-  }, []);
-
-  const handleDragStart = (itemId: string) => {
-    clearPreviewTimers();
+  const handleDragStart = () => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
     setPreviewMemberId(null);
-    setDraggingItemId(itemId);
   };
-
-  const handleDragMove = (x: number, y: number) => {
+  const handleDragMove = (itemId: string, x: number, y: number) => {
+    setDraggingItemId(itemId);
     setDropTargetMemberId(findMemberAtPoint(x, y));
   };
-
-  const handleDropAtPoint = (itemId: string, x: number, y: number) => {
+  const handleDrop = (itemId: string, x: number, y: number) => {
     const memberId = findMemberAtPoint(x, y);
     if (memberId !== null) {
-      if (selected.size > 1) {
-        performAssign(itemId, Array.from(selected));
-      } else {
-        performAssign(itemId, [memberId]);
-      }
+      if (selected.size > 1) performAssign(itemId, Array.from(selected));
+      else performAssign(itemId, [memberId]);
       suppressPreviewBriefly();
     }
     setDraggingItemId(null);
     setDropTargetMemberId(null);
   };
-
   const handleDragEnd = () => {
     setDraggingItemId(null);
     setDropTargetMemberId(null);
   };
 
-  const previewMember = previewMemberId
-    ? members.find((m) => m.id === previewMemberId)
-    : null;
-
   const huddleActive = draggingItemId !== null && selected.size > 1;
 
+  const finish = () => {
+    if (session) {
+      saveSession({
+        ...session,
+        status: "settled",
+        assignments: assignments.map((a) => ({ itemUnitId: a.itemUnitId, memberIds: a.memberIds })),
+      });
+    }
+    router.push("/result");
+  };
+
   return (
-    <div className="pb-32">
-      <Sheet>
-        <div className="flex min-h-9 items-center justify-between gap-2">
-          <StepIndicator current={4} className="flex-1" />
-          <div className="flex items-center gap-1.5">
-            {history.length > 0 && (
-              <IconButton onClick={undo} aria-label="되돌리기">
-                <IconUndo className="h-5 w-5" />
-              </IconButton>
-            )}
-            {redoStack.length > 0 && (
-              <IconButton onClick={redo} aria-label="다시 하기">
-                <IconRedo className="h-5 w-5" />
-              </IconButton>
-            )}
-          </div>
-        </div>
+    <div className="fade-in relative mx-auto w-full max-w-[480px]">
+      {/* margin guide — multi-select discoverability (the kept pattern) */}
+      <div className="pointer-events-none absolute -left-[196px] top-[96px] hidden w-[176px] xl:block">
+        <Scrawl rotate={-4} className="block text-[1.05rem]">
+          여러 명을 먼저 누르면
+          <br />
+          함께 똑같이 나눠 내요
+        </Scrawl>
+        <HintArrow className="mt-1 ml-24" width={80} height={54} tone="muted" style={{ transform: "rotate(14deg)" }} />
+      </div>
 
-        <div className="mt-5 mb-6">
-          <h1 className="font-hand text-[2.1rem] leading-tight text-[var(--color-ink-deep)] sm:text-[2.4rem]">
-            누가 뭘 먹었지?
-          </h1>
-          <p className="font-hand mt-2 text-lg text-[var(--color-ink-soft)]">
-            사람을 누른 뒤 항목을 끌어다 놓아 보세요.
-            <br className="hidden sm:block" /> 여럿을 함께 고르면 나눠 낼 수도 있어요.
+      <div className="flex items-start justify-between gap-3">
+        <h1 className="font-hand text-[2rem] leading-tight text-[var(--color-ink)]">누가 뭘 먹었어요?</h1>
+        <div className="mt-1 flex items-center gap-1.5">
+          {history.length > 0 && (
+            <IconBtn onClick={undo} label="되돌리기">
+              <IconUndo className="h-5 w-5" />
+            </IconBtn>
+          )}
+          {redoStack.length > 0 && (
+            <IconBtn onClick={redo} label="다시 하기">
+              <IconRedo className="h-5 w-5" />
+            </IconBtn>
+          )}
+        </div>
+      </div>
+      <p className="font-hand mt-2 text-[1.05rem] text-[var(--color-graphite)]">
+        항목을 사람 위로 끌어다 놓아요.
+      </p>
+
+      {/* people roster — plain avatars, no cards */}
+      <Roster
+        members={members}
+        selected={selected}
+        dropTargetMemberId={dropTargetMemberId}
+        bumpedMemberIds={bumpedMemberIds}
+        huddleActive={huddleActive}
+        draggingItemId={draggingItemId}
+        previewMemberId={previewMemberId}
+        memberTotal={memberTotal}
+        breakdown={memberBreakdown}
+        onToggle={toggleSelect}
+        onEnter={handleMemberEnter}
+        onLeave={handleMemberLeave}
+        onDropMember={(itemId, memberId) => {
+          if (selected.size > 1) performAssign(itemId, Array.from(selected));
+          else performAssign(itemId, [memberId]);
+          suppressPreviewBriefly();
+        }}
+        onDropHuddle={(itemId) => {
+          performAssign(itemId, Array.from(selected));
+          suppressPreviewBriefly();
+        }}
+        onDragOverMember={(id) => setDropTargetMemberId(id)}
+        onDragLeaveMember={() => setDropTargetMemberId(null)}
+      />
+
+      {/* selection note */}
+      <div className="mt-2 flex min-h-7 items-center">
+        {selected.size > 0 && (
+          <span className="font-hand text-[0.98rem] text-[var(--color-graphite)]">
+            {huddleActive ? (
+              <>{selected.size}명에게 똑같이 — 여기에 놓으세요</>
+            ) : (
+              <>
+                {selected.size}명 함께 ·{" "}
+                <button type="button" onClick={() => setSelected(new Set())} className="text-[var(--color-ash)] hover:text-[var(--color-ink)]">
+                  선택 해제
+                </button>
+              </>
+            )}
+          </span>
+        )}
+      </div>
+
+      {/* remaining items */}
+      <SketchFrame
+        radius={20}
+        fill="#f5f5f5"
+        stroke="ink"
+        shadow="soft"
+        wobble={0.5}
+        strokeWidth={2.4}
+        className="mt-4"
+        contentClassName="px-5 py-4 sm:px-6"
+      >
+        {allAssigned ? (
+          <p className="font-hand py-4 text-center text-[1.1rem] text-[var(--color-ink)]">
+            ✓ 모든 항목을 다 나눴어요
           </p>
-        </div>
-
-        <MemberZone
-          members={members}
-          selected={selected}
-          dropTargetMemberId={dropTargetMemberId}
-          bumpedMemberIds={bumpedMemberIds}
-          huddleActive={huddleActive}
-          draggingItemId={draggingItemId}
-          memberTotal={memberTotal}
-          onSelectToggle={toggleSelect}
-          onHover={handleMemberEnter}
-          onUnhover={handleMemberLeave}
-          onDragOverMember={(id) => setDropTargetMemberId(id)}
-          onDragLeaveMember={() => setDropTargetMemberId(null)}
-          onDropOnMember={(itemId, memberId) => {
-            if (selected.size > 1) performAssign(itemId, Array.from(selected));
-            else performAssign(itemId, [memberId]);
-            suppressPreviewBriefly();
-          }}
-          onDropOnHuddle={(itemId) => {
-            performAssign(itemId, Array.from(selected));
-            suppressPreviewBriefly();
-          }}
-        />
-
-        {/* Single selection-status pill. The slot always reserves the same
-         * row of vertical space whether or not a member is picked, so the
-         * pill appearing / flipping from "함께 부담해요" → "여기에 놓으세요"
-         * during a huddle drag doesn't reflow the Sheet (which used to
-         * ripple every other element in the vertically-centered layout). */}
-        <div className="mt-3 flex min-h-9 items-start">
-          {selected.size > 0 && (
-            <SketchFrame
-              radius={999}
-              shadow="none"
-              stroke="ink"
-              className="inline-block"
-              contentClassName="font-hand inline-flex items-center gap-2 px-3 py-1 text-base whitespace-nowrap text-[var(--color-ink)]"
-            >
-              <span className="font-data">{selected.size}</span>
-              {huddleActive ? (
-                <>명이서 나누기 ✦ 여기에 놓으세요</>
-              ) : (
-                <>
-                  명이 함께 부담해요
-                  <button
-                    type="button"
-                    onClick={() => setSelected(new Set())}
-                    className="font-hand text-base text-[var(--color-ink-soft)] hover:text-[var(--color-ink-deep)]"
-                  >
-                    취소
-                  </button>
-                </>
+        ) : (
+          <>
+            <div className="mb-1 flex items-center justify-between">
+              <span className="font-hand text-[1.05rem] text-[var(--color-ink)]">남은 항목</span>
+              {selected.size === 0 && (
+                <span className="font-hand text-[0.92rem] text-[var(--color-ash)]">끌어다 놓거나, 사람 고른 뒤 톡 누르기</span>
               )}
-            </SketchFrame>
-          )}
-        </div>
+            </div>
+            <ul>
+              {visibleItems.map((item) => (
+                <ItemListRow
+                  key={item.id}
+                  item={item}
+                  remaining={remainingQty(item.id)}
+                  onClick={() => handleItemClick(item.id)}
+                  onDragStart={handleDragStart}
+                  onDragMove={(x, y) => handleDragMove(item.id, x, y)}
+                  onDrop={(x, y) => handleDrop(item.id, x, y)}
+                  onDragEnd={handleDragEnd}
+                />
+              ))}
+            </ul>
+            <div className="mt-4">
+              <SketchButton variant="secondary" size="sm" onClick={distributeAll}>
+                <IconShuffle className="h-4 w-4" /> 남은 항목 모두에게 똑같이
+              </SketchButton>
+            </div>
+          </>
+        )}
+      </SketchFrame>
 
-        {/* Stack ItemZone, MemberPreview, and the completion banner in the
-         * same grid cell. The cell sizes itself to whichever child is
-         * tallest, so swapping between them on hover or after the last
-         * item is assigned doesn't shrink or grow the Sheet (which used
-         * to cascade through the vertically-centered layout above). */}
-        <div className="mt-7 grid">
-          <div
-            className={`col-start-1 row-start-1 transition-opacity duration-200 ${
-              previewMember || allAssigned
-                ? "pointer-events-none opacity-0"
-                : "opacity-100"
-            }`}
-            aria-hidden={!!previewMember || allAssigned}
-          >
-            <ItemZone
-              items={visibleItems}
-              remainingQty={remainingQty}
-              selectedCount={selected.size}
-              onItemClick={handleItemClick}
-              onDragStart={handleDragStart}
-              onDragMove={handleDragMove}
-              onDropAtPoint={handleDropAtPoint}
-              onDragEnd={handleDragEnd}
-            />
-          </div>
-          <div
-            className={`col-start-1 row-start-1 transition-opacity duration-200 ${
-              previewMember && !allAssigned
-                ? "opacity-100"
-                : "pointer-events-none opacity-0"
-            }`}
-            aria-hidden={!previewMember || allAssigned}
-          >
-            {previewSnapshot && (
-              <MemberPreview
-                member={previewSnapshot.member}
-                items={previewSnapshot.items}
-                total={previewSnapshot.total}
-              />
-            )}
-          </div>
-          <div
-            className={`col-start-1 row-start-1 transition-opacity duration-200 ${
-              allAssigned ? "opacity-100" : "pointer-events-none opacity-0"
-            }`}
-            aria-hidden={!allAssigned}
-          >
-            <SketchFrame
-              radius={20}
-              fill="#fafafa"
-              dashed
-              stroke="ink"
-              contentClassName="flex items-center justify-center gap-2 px-4 py-5 text-center"
-            >
-              <IconSparkle className="h-5 w-5 text-[var(--color-ink)]" />
-              <p className="font-hand text-lg text-[var(--color-ink-deep)]">
-                모든 항목 배분 완료!
-              </p>
-              <IconSparkle className="h-5 w-5 text-[var(--color-ink)]" />
-            </SketchFrame>
-          </div>
-        </div>
-
-        {/* Reserve the row so the distribute-all button vanishing after the
-         * last assignment doesn't shift everything above it. */}
-        <div className="mt-6 flex min-h-11 justify-center">
-          {!allAssigned && visibleItems.length > 0 && (
-            <SketchButton variant="ghost" onClick={distributeAll}>
-              <IconSparkle className="h-4 w-4" /> 전체 균등 배분
-            </SketchButton>
-          )}
-        </div>
-      </Sheet>
-
-      {/* Bottom action bar */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30">
-        <div className="mx-auto w-full max-w-[760px] px-4 pb-4 sm:pb-6">
-          <SketchFrame
-            radius={20}
-            shadow="drop"
-            className="pointer-events-auto"
-            contentClassName="flex items-center justify-between gap-3 px-4 py-3 sm:px-5"
-          >
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="inline-flex items-center gap-1.5 font-hand text-lg text-[var(--color-ink-soft)] transition-colors hover:text-[var(--color-ink-deep)]"
-            >
-              <IconArrowLeft className="h-4 w-4" />
-              이전
-            </button>
-            <SketchButton
-              onClick={() => {
-                if (session) {
-                  saveSession({
-                    ...session,
-                    status: "settled",
-                    assignments: assignments.map((assignment) => ({
-                      itemUnitId: assignment.itemUnitId,
-                      memberIds: assignment.memberIds,
-                    })),
-                  });
-                }
-                router.push("/result");
-              }}
-              disabled={!allAssigned}
-            >
-              정산 완료
-            </SketchButton>
-          </SketchFrame>
-        </div>
+      {/* nav */}
+      <div className="mt-12 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => router.push("/review")}
+          className="inline-flex items-center gap-1.5 font-hand text-[1.02rem] text-[var(--color-graphite)] transition-colors hover:text-[var(--color-ink)]"
+        >
+          <IconArrowLeft className="h-4 w-4" /> 이전
+        </button>
+        <SketchButton onClick={finish} disabled={!allAssigned}>
+          정산 끝내기
+        </SketchButton>
       </div>
     </div>
   );
 }
 
-function IconButton({
-  children,
-  ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+function IconBtn({ children, onClick, label }: { children: React.ReactNode; onClick: () => void; label: string }) {
   return (
     <button
       type="button"
-      className="relative grid h-9 w-9 place-items-center text-[var(--color-ink)] transition-transform hover:-translate-y-[1px]"
-      {...rest}
+      onClick={onClick}
+      aria-label={label}
+      className="relative grid h-8 w-8 place-items-center text-[var(--color-ink)] transition-transform hover:-translate-y-[1px]"
     >
-      <SketchRectVisual
-        radius={10}
-        fill="#ffffff"
-        stroke="ink"
-        shadow="soft"
-        wobble={0.45}
-        strokeWidth={2.2}
-      />
+      <SketchRectVisual radius={9} fill="#f5f5f5" stroke="soft" shadow="none" wobble={0.3} strokeWidth={2} />
       <span className="relative">{children}</span>
     </button>
   );
 }
 
-/* ──────────────── Sub: Member zone ──────────────── */
+/* ── people roster ── */
 
-function MemberZone({
+function Roster({
   members,
   selected,
   dropTargetMemberId,
   bumpedMemberIds,
   huddleActive,
   draggingItemId,
+  previewMemberId,
   memberTotal,
-  onSelectToggle,
-  onHover,
-  onUnhover,
+  breakdown,
+  onToggle,
+  onEnter,
+  onLeave,
+  onDropMember,
+  onDropHuddle,
   onDragOverMember,
   onDragLeaveMember,
-  onDropOnMember,
-  onDropOnHuddle,
 }: {
   members: Member[];
   selected: Set<string>;
@@ -649,351 +437,257 @@ function MemberZone({
   bumpedMemberIds: Set<string>;
   huddleActive: boolean;
   draggingItemId: string | null;
+  previewMemberId: string | null;
   memberTotal: (id: string) => number;
-  onSelectToggle: (id: string) => void;
-  onHover: (id: string) => void;
-  onUnhover: () => void;
+  breakdown: (id: string) => { name: string; units: number; amount: number; split: number }[];
+  onToggle: (id: string) => void;
+  onEnter: (id: string) => void;
+  onLeave: () => void;
+  onDropMember: (itemId: string, memberId: string) => void;
+  onDropHuddle: (itemId: string) => void;
   onDragOverMember: (id: string) => void;
   onDragLeaveMember: () => void;
-  onDropOnMember: (itemId: string, memberId: string) => void;
-  onDropOnHuddle: (itemId: string) => void;
 }) {
-  const cardRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
-  const [huddleOffsets, setHuddleOffsets] = useState<Map<string, { x: number; y: number }>>(
-    new Map(),
-  );
+  const refs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const [offsets, setOffsets] = useState<Map<string, { x: number; y: number }>>(new Map());
 
-  // When a huddle starts, walk the selected cards in DOM order and compute
-  // translate offsets that pull each one toward their shared center — both
-  // horizontally AND vertically, so cards on different rows still stack on
-  // the same spot. Unselected cards keep their slot (no flex-justify shuffling).
   useLayoutEffect(() => {
-    const clear = () => setHuddleOffsets((cur) => (cur.size === 0 ? cur : new Map()));
-    if (!huddleActive) {
-      clear();
-      return;
-    }
-    const positioned = members
+    const clear = () => setOffsets((c) => (c.size === 0 ? c : new Map()));
+    if (!huddleActive) return clear();
+    const pts = members
       .filter((m) => selected.has(m.id))
       .map((m) => {
-        const el = cardRefs.current.get(m.id);
+        const el = refs.current.get(m.id);
         if (!el) return null;
-        const rect = el.getBoundingClientRect();
-        return {
-          id: m.id,
-          centerX: rect.left + rect.width / 2,
-          centerY: rect.top + rect.height / 2,
-        };
+        const r = el.getBoundingClientRect();
+        return { id: m.id, cx: r.left + r.width / 2, cy: r.top + r.height / 2 };
       })
-      .filter(
-        (x): x is { id: string; centerX: number; centerY: number } => x !== null,
-      );
-    if (positioned.length < 2) {
-      clear();
-      return;
-    }
-    const meanX =
-      positioned.reduce((sum, p) => sum + p.centerX, 0) / positioned.length;
-    const meanY =
-      positioned.reduce((sum, p) => sum + p.centerY, 0) / positioned.length;
+      .filter((x): x is { id: string; cx: number; cy: number } => x !== null);
+    if (pts.length < 2) return clear();
+    const mx = pts.reduce((s, p) => s + p.cx, 0) / pts.length;
+    const my = pts.reduce((s, p) => s + p.cy, 0) / pts.length;
     const next = new Map<string, { x: number; y: number }>();
-    positioned.forEach(({ id, centerX, centerY }, idx) => {
-      // Small fan offset so stacked cards still read as distinct pieces.
-      const fan = (idx - (positioned.length - 1) / 2) * 14;
-      next.set(id, { x: meanX - centerX + fan, y: meanY - centerY });
+    pts.forEach(({ id, cx, cy }, i) => {
+      next.set(id, { x: mx - cx + (i - (pts.length - 1) / 2) * 12, y: my - cy });
     });
-    setHuddleOffsets(next);
+    setOffsets(next);
   }, [huddleActive, selected, members]);
 
   return (
-    <div className="relative">
-      <div className="flex flex-wrap gap-3">
-        {members.map((m) => {
-          const isSelected = selected.has(m.id);
-          const isDropTarget = dropTargetMemberId === m.id;
-          const isBumped = bumpedMemberIds.has(m.id);
-          const offset = huddleOffsets.get(m.id) ?? { x: 0, y: 0 };
-          const huddleStyle: CSSProperties | undefined = huddleActive
-            ? isSelected
-              ? {
-                  transform: `translate(${offset.x}px, ${offset.y - 4}px) scale(1.05) rotate(${(members.findIndex((member) => member.id === m.id) % 3) - 1}deg)`,
-                  zIndex: 10,
-                }
-              : { opacity: 0.32 }
-            : undefined;
-          const showShadow = isSelected || isDropTarget ? "drop" : "soft";
-          return (
-            <button
-              key={m.id}
-              type="button"
-              ref={(el) => {
-                if (el) cardRefs.current.set(m.id, el);
-                else cardRefs.current.delete(m.id);
-              }}
-              data-member-id={m.id}
-              onClick={() => onSelectToggle(m.id)}
-              onPointerEnter={() => onHover(m.id)}
-              onPointerLeave={onUnhover}
-              onMouseEnter={() => onHover(m.id)}
-              onMouseLeave={onUnhover}
-              onDragOver={(e) => {
-                if (draggingItemId !== null) {
-                  e.preventDefault();
-                  onDragOverMember(m.id);
-                }
-              }}
-              onDragLeave={onDragLeaveMember}
-              onDrop={(e) => {
+    <SketchFrame
+      radius={20}
+      fill="#f5f5f5"
+      stroke="ink"
+      shadow="soft"
+      wobble={0.5}
+      strokeWidth={2.4}
+      className="mt-6"
+      contentClassName="flex flex-wrap items-start gap-x-1.5 gap-y-1.5 px-3.5 py-3.5"
+    >
+      {members.map((m) => {
+        const isSelected = selected.has(m.id);
+        const isDrop = dropTargetMemberId === m.id;
+        const bumped = bumpedMemberIds.has(m.id);
+        const active = isSelected || isDrop;
+        const off = offsets.get(m.id) ?? { x: 0, y: 0 };
+        const style: CSSProperties | undefined = huddleActive
+          ? isSelected
+            ? { transform: `translate(${off.x}px, ${off.y - 4}px) scale(1.06)`, zIndex: 10 }
+            : { opacity: 0.3 }
+          : undefined;
+        const showPreview = previewMemberId === m.id && !huddleActive;
+        return (
+          <button
+            key={m.id}
+            type="button"
+            ref={(el) => {
+              if (el) refs.current.set(m.id, el);
+              else refs.current.delete(m.id);
+            }}
+            data-member-id={m.id}
+            onClick={() => onToggle(m.id)}
+            onPointerEnter={() => onEnter(m.id)}
+            onPointerLeave={onLeave}
+            onMouseEnter={() => onEnter(m.id)}
+            onMouseLeave={onLeave}
+            onDragOver={(e) => {
+              if (draggingItemId !== null) {
                 e.preventDefault();
-                if (draggingItemId !== null) {
-                  if (huddleActive) onDropOnHuddle(draggingItemId);
-                  else onDropOnMember(draggingItemId, m.id);
-                }
-                onDragLeaveMember();
-              }}
-              className={`group relative w-[112px] transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] sm:w-[128px] ${
-                isSelected || isDropTarget ? "-translate-y-1" : ""
-              }`}
-              style={huddleStyle}
-            >
-              <SketchRectVisual
-                radius={18}
-                fill={isSelected || isDropTarget ? "#ffffff" : "#fafafa"}
-                stroke={isSelected || isDropTarget ? "ink" : "soft"}
-                shadow={showShadow}
-                wobble={0.55}
-                strokeWidth={isSelected || isDropTarget ? 2.6 : 2.2}
-                seed={(members.findIndex((member) => member.id === m.id) + 1) * 7}
-              />
-              <span className="relative flex flex-col items-center gap-1.5 px-3 py-3">
-                <Avatar name={m.name} size={48} />
-                <span className="font-hand text-lg text-[var(--color-ink-deep)]">
-                  {m.name}
-                </span>
-                <span
-                  className={`font-data money-text text-base text-[var(--color-ink-deep)] ${
-                    isBumped ? "animate-count-bump" : ""
-                  }`}
-                >
-                  <RollingCurrency value={memberTotal(m.id)} active={isBumped} />
-                </span>
+                onDragOverMember(m.id);
+              }
+            }}
+            onDragLeave={onDragLeaveMember}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (draggingItemId !== null) {
+                if (huddleActive) onDropHuddle(draggingItemId);
+                else onDropMember(draggingItemId, m.id);
+              }
+              onDragLeaveMember();
+            }}
+            className="group relative flex w-[86px] flex-col items-center gap-1.5 px-2 py-3 transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+            style={style}
+          >
+            {/* whole-cell card appears when selected or a drop target */}
+            {active && (
+              <span className="absolute inset-0">
+                <SketchRectVisual
+                  radius={16}
+                  fill="#f5f5f5"
+                  stroke="ink"
+                  shadow={isDrop ? "drop" : "soft"}
+                  wobble={0.4}
+                  strokeWidth={2.4}
+                  seed={(members.indexOf(m) + 1) * 9}
+                />
               </span>
-              {isSelected && (
-                <span className="absolute -top-2 -right-2 grid h-6 w-6 place-items-center">
-                  <SketchRectVisual
-                    radius={999}
-                    fill="#262626"
-                    stroke="ink"
-                    shadow="soft"
-                    wobble={0.4}
-                  />
-                  <IconCheck className="relative h-3.5 w-3.5 text-white" />
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </div>
+            )}
+            <span className="relative flex flex-col items-center gap-1.5">
+              <Avatar name={m.name} size={46} tone={active ? "ink" : "soft"} />
+              <span className={`font-hand text-[1rem] ${active ? "text-[var(--color-ink)]" : "text-[var(--color-graphite)]"}`}>{m.name}</span>
+              <span className={`font-data money-text text-[0.92rem] text-[var(--color-ink)] ${bumped ? "animate-count-bump" : ""}`}>
+                <RollingCurrency value={memberTotal(m.id)} active={bumped} />
+              </span>
+            </span>
+            {isSelected && (
+              <span className="absolute -right-2 -top-2 z-10 grid h-5 w-5 place-items-center">
+                <SketchRectVisual radius={999} fill="#262626" stroke="ink" wobble={0.3} strokeWidth={2} />
+                <IconCheck className="relative h-3 w-3 text-[var(--color-paper)]" />
+              </span>
+            )}
+            {showPreview && <PreviewPopover items={breakdown(m.id)} total={memberTotal(m.id)} />}
+          </button>
+        );
+      })}
+    </SketchFrame>
   );
 }
 
-/* ──────────────── Sub: Item zone (unassigned items) ──────────────── */
-
-function ItemZone({
+function PreviewPopover({
   items,
-  remainingQty,
-  selectedCount,
-  onItemClick,
-  onDragStart,
-  onDragMove,
-  onDropAtPoint,
-  onDragEnd,
+  total,
 }: {
-  items: Item[];
-  remainingQty: (id: string) => number;
-  selectedCount: number;
-  onItemClick: (id: string) => void;
-  onDragStart: (id: string) => void;
-  onDragMove: (x: number, y: number) => void;
-  onDropAtPoint: (id: string, x: number, y: number) => void;
-  onDragEnd: () => void;
+  items: { name: string; units: number; amount: number; split: number }[];
+  total: number;
 }) {
-  if (items.length === 0) return null;
   return (
-    <>
-      <div className="mb-3 flex items-center gap-2">
-        <span className="font-hand text-base text-[var(--color-ink-soft)]">
-          남은 항목 · {items.length}개
+    <span className="animate-pop pointer-events-none absolute left-1/2 top-full z-30 mt-2 w-[200px] -translate-x-1/2">
+      <span className="relative block">
+        <SketchRectVisual radius={14} fill="#f5f5f5" stroke="ink" shadow="drop" wobble={0.3} strokeWidth={2.2} />
+        <span className="relative block px-3 py-2.5 text-left">
+          {items.length === 0 ? (
+            <span className="font-hand block text-[0.95rem] text-[var(--color-graphite)]">아직 담은 게 없어요</span>
+          ) : (
+            <>
+              {items.map((it, i) => (
+                <span key={i} className="flex items-center justify-between gap-2 py-0.5">
+                  <span className="font-hand truncate text-[0.95rem] text-[var(--color-ink)]">
+                    {it.name}
+                    {it.units > 1 && <span className="text-[var(--color-ash)]"> ×{it.units}</span>}
+                    {it.split > 1 && <span className="text-[var(--color-ash)]"> ({it.split}명)</span>}
+                  </span>
+                  <span className="font-data money-text shrink-0 text-[0.9rem] text-[var(--color-ink)]">{fmt(it.amount)}원</span>
+                </span>
+              ))}
+              <span className="mt-1 flex items-center justify-between border-t border-dashed border-[var(--color-ash)]/50 pt-1">
+                <span className="font-hand text-[0.95rem] text-[var(--color-graphite)]">합계</span>
+                <span className="font-data money-text text-[0.95rem] text-[var(--color-ink)]">{fmt(total)}원</span>
+              </span>
+            </>
+          )}
         </span>
-        <span className="h-[1px] flex-1 bg-[var(--color-ink-line)]" />
-        {selectedCount === 0 && (
-          <span className="font-hand text-base text-[var(--color-ink-mute)]">
-            먼저 사람을 골라 주세요
-          </span>
-        )}
-      </div>
-      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {items.map((item) => {
-          const rem = remainingQty(item.id);
-          return (
-            <li key={item.id}>
-              <ItemCard
-                item={item}
-                remaining={rem}
-                pickable={selectedCount > 0}
-                onClick={() => onItemClick(item.id)}
-                onDragStart={() => onDragStart(item.id)}
-                onDragMove={onDragMove}
-                onDropAtPoint={(x, y) => onDropAtPoint(item.id, x, y)}
-                onDragEnd={onDragEnd}
-              />
-            </li>
-          );
-        })}
-      </ul>
-    </>
+      </span>
+    </span>
   );
 }
 
-function ItemCard({
+/* ── draggable item row ── */
+
+function ItemListRow({
   item,
   remaining,
   onClick,
   onDragStart,
   onDragMove,
-  onDropAtPoint,
+  onDrop,
   onDragEnd,
 }: {
   item: Item;
   remaining: number;
-  pickable: boolean;
   onClick: () => void;
   onDragStart: () => void;
   onDragMove: (x: number, y: number) => void;
-  onDropAtPoint: (x: number, y: number) => void;
+  onDrop: (x: number, y: number) => void;
   onDragEnd: () => void;
 }) {
-  const cardRef = useRef<HTMLDivElement | null>(null);
-  const dragRef = useRef<{
-    pointerId: number;
-    startX: number;
-    startY: number;
-    offsetX: number;
-    offsetY: number;
-    width: number;
-    height: number;
-    active: boolean;
-  } | null>(null);
-  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
-  const [dragVisual, setDragVisual] = useState<{
-    x: number;
-    y: number;
-    offsetX: number;
-    offsetY: number;
-    width: number;
-    height: number;
-  } | null>(null);
+  const dragRef = useRef<{ pointerId: number; startX: number; startY: number; active: boolean } | null>(null);
+  const lastRef = useRef<{ x: number; y: number } | null>(null);
+  const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
 
-  const finishDrag = useCallback(
-    (x: number, y: number, shouldDrop: boolean) => {
-      const drag = dragRef.current;
-      if (!drag) return;
-      if (drag.active && shouldDrop) {
-        onDropAtPoint(x, y);
-      }
-      if (drag.active) {
-        onDragEnd();
-      }
+  const finish = useCallback(
+    (x: number, y: number, drop: boolean) => {
+      const d = dragRef.current;
+      if (!d) return;
+      if (d.active && drop) onDrop(x, y);
+      if (d.active) onDragEnd();
       dragRef.current = null;
-      lastPointRef.current = null;
-      setDragVisual(null);
+      lastRef.current = null;
+      setGhost(null);
     },
-    [onDragEnd, onDropAtPoint]
+    [onDrop, onDragEnd],
   );
 
   useEffect(() => {
-    if (!dragVisual) return;
-    const handleRelease = (event: PointerEvent | MouseEvent) => {
-      finishDrag(event.clientX, event.clientY, true);
-    };
-    const handleCancel = () => {
-      const point = lastPointRef.current;
-      finishDrag(point?.x ?? 0, point?.y ?? 0, false);
-    };
-    window.addEventListener("pointerup", handleRelease, true);
-    window.addEventListener("mouseup", handleRelease, true);
-    window.addEventListener("pointercancel", handleCancel, true);
-    window.addEventListener("blur", handleCancel, true);
+    if (!ghost) return;
+    const up = (e: PointerEvent | MouseEvent) => finish(e.clientX, e.clientY, true);
+    const cancel = () => finish(lastRef.current?.x ?? 0, lastRef.current?.y ?? 0, false);
+    window.addEventListener("pointerup", up, true);
+    window.addEventListener("pointercancel", cancel, true);
+    window.addEventListener("blur", cancel, true);
     return () => {
-      window.removeEventListener("pointerup", handleRelease, true);
-      window.removeEventListener("mouseup", handleRelease, true);
-      window.removeEventListener("pointercancel", handleCancel, true);
-      window.removeEventListener("blur", handleCancel, true);
+      window.removeEventListener("pointerup", up, true);
+      window.removeEventListener("pointercancel", cancel, true);
+      window.removeEventListener("blur", cancel, true);
     };
-  }, [dragVisual, finishDrag]);
+  }, [ghost, finish]);
 
   return (
-    <div
-      ref={cardRef}
-      className="relative h-full"
-      style={dragVisual ? { height: dragVisual.height } : undefined}
+    <li
       role="button"
       tabIndex={0}
+      className={`draggable relative border-b border-dashed border-[var(--color-ash)]/40 transition-colors last:border-b-0 ${
+        ghost ? "" : "hover:bg-[var(--color-ink)]/[0.03]"
+      }`}
       onPointerDown={(e) => {
         if (e.button !== 0) return;
         e.preventDefault();
-        const rect = e.currentTarget.getBoundingClientRect();
-        dragRef.current = {
-          pointerId: e.pointerId,
-          startX: e.clientX,
-          startY: e.clientY,
-          offsetX: e.clientX - rect.left,
-          offsetY: e.clientY - rect.top,
-          width: rect.width,
-          height: rect.height,
-          active: false,
-        };
+        dragRef.current = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, active: false };
         e.currentTarget.setPointerCapture(e.pointerId);
       }}
       onPointerMove={(e) => {
-        const drag = dragRef.current;
-        if (!drag || drag.pointerId !== e.pointerId) return;
-        const dx = e.clientX - drag.startX;
-        const dy = e.clientY - drag.startY;
-        if (!drag.active && Math.hypot(dx, dy) > 5) {
-          drag.active = true;
+        const d = dragRef.current;
+        if (!d || d.pointerId !== e.pointerId) return;
+        if (!d.active && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > 5) {
+          d.active = true;
           onDragStart();
         }
-        if (!drag.active) return;
+        if (!d.active) return;
         e.preventDefault();
-        lastPointRef.current = { x: e.clientX, y: e.clientY };
-        setDragVisual({
-          x: e.clientX,
-          y: e.clientY,
-          offsetX: drag.offsetX,
-          offsetY: drag.offsetY,
-          width: drag.width,
-          height: drag.height,
-        });
+        lastRef.current = { x: e.clientX, y: e.clientY };
+        setGhost({ x: e.clientX, y: e.clientY });
         onDragMove(e.clientX, e.clientY);
       }}
       onPointerUp={(e) => {
-        const drag = dragRef.current;
-        if (!drag || drag.pointerId !== e.pointerId) return;
+        const d = dragRef.current;
+        if (!d || d.pointerId !== e.pointerId) return;
         e.currentTarget.releasePointerCapture(e.pointerId);
-        if (drag.active) {
+        if (d.active) {
           e.preventDefault();
-          finishDrag(e.clientX, e.clientY, true);
+          finish(e.clientX, e.clientY, true);
         } else {
           dragRef.current = null;
           onClick();
         }
-      }}
-      onPointerCancel={(e) => {
-        const drag = dragRef.current;
-        if (!drag || drag.pointerId !== e.pointerId) return;
-        finishDrag(e.clientX, e.clientY, false);
       }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -1002,216 +696,84 @@ function ItemCard({
         }
       }}
     >
-      <div
-        className={`draggable relative h-full transition-transform ${
-          dragVisual ? "cursor-grabbing" : "hover:-translate-y-0.5"
-        }`}
-        style={
-          dragVisual
-            ? {
-                position: "fixed",
-                left: dragVisual.x - dragVisual.offsetX,
-                top: dragVisual.y - dragVisual.offsetY,
-                width: dragVisual.width,
-                height: dragVisual.height,
-                zIndex: 60,
-                pointerEvents: "none",
-                transform: "rotate(-1deg) scale(1.03)",
-              }
-            : undefined
-        }
-      >
-        <SketchRectVisual
-          radius={18}
-          fill="#ffffff"
-          stroke="ink"
-          shadow="soft"
-          wobble={0.5}
-          seed={(itemsSeed(item.id) + 1) * 13}
-        />
-        <div className="relative flex h-full flex-col gap-1 px-4 py-3.5">
-          <div className="flex items-start justify-between gap-2">
-            <span className="font-data line-clamp-2 text-base text-[var(--color-ink-deep)]">
-              {item.name}
-            </span>
-            {item.totalQty > 1 && (
-              <span className="relative inline-grid h-6 min-w-6 place-items-center px-1.5">
-                <SketchRectVisual
-                  radius={999}
-                  fill="#fafafa"
-                  stroke="ink"
-                  wobble={0.4}
-                  strokeWidth={2}
-                />
-                <span className="relative font-data text-sm text-[var(--color-ink-deep)]">
-                  {remaining}
-                </span>
-              </span>
-            )}
-          </div>
-          <div className="mt-auto pt-2">
-            <span className="font-data money-text text-lg text-[var(--color-ink-soft)]">
-              ₩{fmt(item.unitPrice)}
-            </span>
-          </div>
-        </div>
+      <div className={`flex items-center justify-between gap-3 py-3 transition-opacity ${ghost ? "opacity-30" : ""}`}>
+        <span className="font-hand text-[1.08rem] text-[var(--color-ink)]">
+          {item.name}
+          {remaining > 1 && <span className="font-data text-[0.9rem] text-[var(--color-ash)]"> ×{remaining}</span>}
+        </span>
+        <span className="font-data money-text text-[1.02rem] text-[var(--color-graphite)]">{fmt(item.unitPrice)}원</span>
       </div>
-    </div>
+
+      {ghost && (
+        <span
+          className="pointer-events-none fixed z-[60] inline-flex items-center gap-2 whitespace-nowrap px-3.5 py-2"
+          style={{ left: ghost.x, top: ghost.y, transform: "translate(-50%, -50%) rotate(-2deg)" }}
+        >
+          <SketchRectVisual radius={12} fill="#f5f5f5" stroke="ink" shadow="drop" wobble={0.3} strokeWidth={2.2} />
+          <span className="font-hand relative whitespace-nowrap text-[1rem] text-[var(--color-ink)]">{item.name}</span>
+          <span className="font-data money-text relative whitespace-nowrap text-[0.9rem] text-[var(--color-graphite)]">{fmt(item.unitPrice)}원</span>
+        </span>
+      )}
+    </li>
   );
 }
 
-function RollingCurrency({
-  value,
-  active,
-}: {
-  value: number;
-  active?: boolean;
-}) {
-  const previousValueRef = useRef(value);
+/* ── rolling amount ── */
+
+function RollingCurrency({ value, active }: { value: number; active?: boolean }) {
+  const prevRef = useRef(value);
   const frameRef = useRef<number | undefined>(undefined);
-  const [displayValue, setDisplayValue] = useState(value);
+  const [display, setDisplay] = useState(value);
   const [diffFrom, setDiffFrom] = useState(fmt(value));
 
   useEffect(() => {
-    const from = previousValueRef.current;
-    if (from === value) {
-      setDisplayValue(value);
-      return;
-    }
-    previousValueRef.current = value;
+    const from = prevRef.current;
+    if (from === value) return void setDisplay(value);
+    prevRef.current = value;
     setDiffFrom(fmt(from));
     if (frameRef.current) cancelAnimationFrame(frameRef.current);
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setDisplayValue(value);
-      return;
-    }
-    const startedAt = performance.now();
-    const duration = 540;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return void setDisplay(value);
+    const start = performance.now();
     const tick = (now: number) => {
-      const progress = Math.min(1, (now - startedAt) / duration);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplayValue(from + (value - from) * eased);
-      if (progress < 1) {
-        frameRef.current = requestAnimationFrame(tick);
-      } else {
-        setDisplayValue(value);
-      }
+      const p = Math.min(1, (now - start) / 520);
+      setDisplay(from + (value - from) * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) frameRef.current = requestAnimationFrame(tick);
+      else setDisplay(value);
     };
     frameRef.current = requestAnimationFrame(tick);
     return () => {
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
     };
   }, [value]);
-
-  useEffect(() => {
-    return () => {
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
-    };
+  useEffect(() => () => {
+    if (frameRef.current) cancelAnimationFrame(frameRef.current);
   }, []);
 
-  const targetText = fmt(value);
-  const displayText = fmt(displayValue);
-  const width = Math.max(diffFrom.length, targetText.length, displayText.length);
-  const previousChars = diffFrom.padStart(width, " ");
-  const targetChars = targetText.padStart(width, " ");
-  const displayChars = displayText.padStart(width, " ").split("");
+  const target = fmt(value);
+  const shown = fmt(display);
+  const width = Math.max(diffFrom.length, target.length, shown.length);
+  const prevC = diffFrom.padStart(width, " ");
+  const targetC = target.padStart(width, " ");
+  const chars = shown.padStart(width, " ").split("");
 
   return (
-    <span className="rolling-amount" aria-label={`₩${targetText}`}>
-      <span aria-hidden>₩</span>
-      {displayChars.map((char, index) => {
-        if (char === " ") return null;
-        const isDigit = /\d/.test(char);
-        const changed =
-          active && isDigit && previousChars[index] !== targetChars[index];
+    <span className="rolling-amount" aria-label={`${target}원`}>
+      {chars.map((ch, i) => {
+        if (ch === " ") return null;
+        const isDigit = /\d/.test(ch);
+        const changed = active && isDigit && prevC[i] !== targetC[i];
         return (
           <span
-            key={`${index}-${targetChars[index]}`}
+            key={`${i}-${targetC[i]}`}
             aria-hidden
-            className={`rolling-amount__char ${
-              isDigit ? "rolling-amount__digit" : "rolling-amount__separator"
-            } ${changed ? "rolling-amount__digit--changed" : ""}`}
-            style={changed ? { animationDelay: `${index * 18}ms` } : undefined}
+            className={`rolling-amount__char ${isDigit ? "rolling-amount__digit" : "rolling-amount__separator"} ${changed ? "rolling-amount__digit--changed" : ""}`}
+            style={changed ? { animationDelay: `${i * 16}ms` } : undefined}
           >
-            {char}
+            {ch}
           </span>
         );
       })}
-    </span>
-  );
-}
-
-/* ──────────────── Sub: Member preview (on hover) ──────────────── */
-
-function MemberPreview({
-  member,
-  items,
-  total,
-}: {
-  member: Member;
-  items: { name: string; units: number; amount: number; splitNotes: string[] }[];
-  total: number;
-}) {
-  return (
-    <SketchFrame
-      radius={20}
-      fill="#ffffff"
-      shadow="drop"
-      contentClassName="px-4 py-4"
-    >
-      <div className="mb-3 flex items-center justify-between">
-        <span className="font-hand text-lg text-[var(--color-ink-deep)]">
-          <span className="text-xl">{member.name}</span>의 항목
-        </span>
-        <span className="font-data money-text text-xl text-[var(--color-ink-deep)]">
-          ₩{fmt(total)}
-        </span>
-      </div>
-      {items.length === 0 ? (
-        <p className="font-hand py-3 text-center text-lg text-[var(--color-ink-soft)]">
-          아직 배분된 항목이 없어요.
-        </p>
-      ) : (
-        <ul className="divide-y divide-dashed divide-[var(--color-ink-line)]">
-          {items.map((it, idx) => (
-            <li key={idx} className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-2">
-                <span className="font-data text-lg text-[var(--color-ink-deep)]">
-                  {it.name}
-                </span>
-                {it.units > 1 && (
-                  <span className="font-data text-base text-[var(--color-ink-soft)]">
-                    × {it.units}
-                  </span>
-                )}
-                {it.splitNotes.length > 0 && (
-                  <SplitBadge>{it.splitNotes[0]}</SplitBadge>
-                )}
-              </div>
-              <span className="font-data money-text text-lg text-[var(--color-ink-deep)]">
-                ₩{fmt(it.amount)}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </SketchFrame>
-  );
-}
-
-function SplitBadge({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="relative inline-block">
-      <SketchRectVisual
-        radius={999}
-        fill="#fafafa"
-        stroke="soft"
-        wobble={0.4}
-        strokeWidth={1.6}
-      />
-      <span className="font-hand relative inline-block px-2 text-[0.85rem] text-[var(--color-ink-soft)]">
-        {children}
-      </span>
+      <span aria-hidden>원</span>
     </span>
   );
 }

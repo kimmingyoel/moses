@@ -154,7 +154,7 @@ export function IconPencil({
         strokeWidth={strokeWidth}
         strokeLinecap="round"
         strokeLinejoin="round"
-        fill="#ffffff"
+        fill="#f5f5f5"
       />
       <path
         d="M18 7 L 21 10"
@@ -322,6 +322,70 @@ export function IconAlert({
         r="1.4"
         fill="currentColor"
       />
+    </svg>
+  );
+}
+
+export function IconCopy({ className = "", style, strokeWidth = 2.2 }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} style={style} fill="none" aria-hidden>
+      <path
+        d="M9 9 L 19 9 Q 20 9, 20 10 L 20 20 Q 20 21, 19 21 L 9 21 Q 8 21, 8 20 L 8 10 Q 8 9, 9 9 Z"
+        stroke="currentColor"
+        strokeWidth={strokeWidth}
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <path
+        d="M5 15 Q 4 15, 4 14 L 4 4 Q 4 3, 5 3 L 15 3 Q 16 3, 16 4 L 16 5"
+        stroke="currentColor"
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
+export function IconTrash({ className = "", style, strokeWidth = 2.2 }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} style={style} fill="none" aria-hidden>
+      <path d="M4 7 Q 12 6.4, 20 7" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" />
+      <path d="M9 7 L 9.4 4.6 Q 9.5 4, 10.2 4 L 13.8 4 Q 14.5 4, 14.6 4.6 L 15 7" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path d="M6 8 L 7 19 Q 7.1 20.4, 8.6 20.5 L 15.4 20.5 Q 16.9 20.4, 17 19 L 18 8" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path d="M10 11 L 10.4 17 M 14 11 L 13.6 17" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function IconGrip({ className = "", style }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} style={style} fill="none" aria-hidden>
+      {[8, 12, 16].map((y) =>
+        [9, 15].map((x) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.5" fill="currentColor" />),
+      )}
+    </svg>
+  );
+}
+
+export function IconUsers({ className = "", style, strokeWidth = 2.2 }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} style={style} fill="none" aria-hidden>
+      <path d="M9 10 Q 12 10, 12 7 Q 12 4, 9 4 Q 6 4, 6 7 Q 6 10, 9 10 Z" stroke="currentColor" strokeWidth={strokeWidth} strokeLinejoin="round" fill="none" />
+      <path d="M3 20 Q 3 14, 9 14 Q 15 14, 15 20" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" fill="none" />
+      <path d="M16 10 Q 19 9.5, 19 6.5 M 17 14 Q 21 14, 21 20" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" fill="none" />
+    </svg>
+  );
+}
+
+export function IconShuffle({ className = "", style, strokeWidth = 2.2 }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} style={style} fill="none" aria-hidden>
+      <path d="M3 6 Q 8 6, 11 12 Q 14 18, 19 18" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" fill="none" />
+      <path d="M3 18 Q 8 18, 11 12 Q 14 6, 19 6" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" fill="none" />
+      <path d="M16 3 L 19.5 6 L 16 9" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path d="M16 15 L 19.5 18 L 16 21" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" fill="none" />
     </svg>
   );
 }

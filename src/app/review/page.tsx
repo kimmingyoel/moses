@@ -9,33 +9,25 @@ import {
   type SplitSession,
 } from "@/lib/session";
 import {
-  Sheet,
   SketchFrame,
   SketchButton,
-  StepIndicator,
+  WavyDivider,
+  InfoNote,
   IconClose,
   IconPlus,
   IconAlert,
   IconArrowLeft,
 } from "@/components/sketch";
 
-type Item = {
-  id: string;
-  name: string;
-  quantity: number;
-  unitPrice: number;
-};
+type Item = { id: string; name: string; quantity: number; unitPrice: number };
 
 const fmt = (n: number) => n.toLocaleString("ko-KR");
+const shortAdj = (name: string) =>
+  /할인/.test(name) ? "할인" : /수수료/.test(name) ? "수수료" : name;
 
-function receiptEditableFieldsMatch(
-  a: SplitSession["receipt"],
-  b: SplitSession["receipt"],
-) {
+function receiptEditableFieldsMatch(a: SplitSession["receipt"], b: SplitSession["receipt"]) {
   if (!a || !b) return a === b;
-  if (a.totalAmount !== b.totalAmount || a.items.length !== b.items.length) {
-    return false;
-  }
+  if (a.totalAmount !== b.totalAmount || a.items.length !== b.items.length) return false;
   return a.items.every((item, index) => {
     const other = b.items[index];
     return (
@@ -73,68 +65,42 @@ export default function ReviewPage() {
 
   const itemSubtotal = useMemo(
     () => items.reduce((acc, it) => acc + it.quantity * it.unitPrice, 0),
-    [items]
+    [items],
   );
-
-  const hasInvalid = items.some(
-    (it) => !it.name.trim() || it.quantity <= 0 || it.unitPrice <= 0
-  );
-  const adjustmentTotal =
-    session?.receipt?.adjustments.reduce(
-      (sum, adjustment) => sum + adjustment.amount,
-      0,
-    ) ?? 0;
+  const hasInvalid = items.some((it) => !it.name.trim() || it.quantity <= 0 || it.unitPrice <= 0);
+  const adjustments = session?.receipt?.adjustments ?? [];
+  const adjustmentTotal = adjustments.reduce((sum, a) => sum + a.amount, 0);
   const computedTotal = itemSubtotal + adjustmentTotal;
   const hasReceipt = Boolean(session?.receipt);
   const hasEnoughMembers = (session?.members.length ?? 0) >= 2;
   const canConfirm =
-    hasReceipt &&
-    hasEnoughMembers &&
-    items.length > 0 &&
-    !hasInvalid &&
-    computedTotal > 0;
+    hasReceipt && hasEnoughMembers && items.length > 0 && !hasInvalid && computedTotal > 0;
 
   const update = (id: string, patch: Partial<Item>) =>
     setItems((list) => list.map((it) => (it.id === id ? { ...it, ...patch } : it)));
-
-  const remove = (id: string) =>
-    setItems((list) => list.filter((it) => it.id !== id));
+  const remove = (id: string) => setItems((list) => list.filter((it) => it.id !== id));
 
   const addButtonRef = useRef<HTMLButtonElement | null>(null);
   const pendingAnchorRef = useRef<number | null>(null);
-
   const add = () => {
-    pendingAnchorRef.current =
-      addButtonRef.current?.getBoundingClientRect().top ?? null;
-    setItems((list) => [
-      ...list,
-      { id: crypto.randomUUID(), name: "", quantity: 1, unitPrice: 0 },
-    ]);
+    pendingAnchorRef.current = addButtonRef.current?.getBoundingClientRect().top ?? null;
+    setItems((list) => [...list, { id: crypto.randomUUID(), name: "", quantity: 1, unitPrice: 0 }]);
   };
-
   useLayoutEffect(() => {
     if (pendingAnchorRef.current === null || !addButtonRef.current) return;
-    const delta =
-      addButtonRef.current.getBoundingClientRect().top -
-      pendingAnchorRef.current;
+    const delta = addButtonRef.current.getBoundingClientRect().top - pendingAnchorRef.current;
     pendingAnchorRef.current = null;
     if (delta !== 0) window.scrollBy(0, delta);
   }, [items.length]);
 
-  const buildEditedReceipt = (source: SplitSession["receipt"]) => {
-    if (!source) return null;
-    return updateReceiptItems(source, items, computedTotal);
-  };
+  const buildEditedReceipt = (source: SplitSession["receipt"]) =>
+    source ? updateReceiptItems(source, items, computedTotal) : null;
 
   const saveReceiptDraft = () => {
     const current = loadSession() ?? session;
     const editedReceipt = buildEditedReceipt(current?.receipt ?? null);
     if (!current || !editedReceipt) return null;
-
-    const stillConfirmed = receiptEditableFieldsMatch(
-      editedReceipt,
-      current.confirmedReceipt,
-    );
+    const stillConfirmed = receiptEditableFieldsMatch(editedReceipt, current.confirmedReceipt);
     return saveSession({
       ...current,
       status: stillConfirmed ? current.status : "needs_review",
@@ -149,198 +115,108 @@ export default function ReviewPage() {
     const confirmedReceipt = buildEditedReceipt(current?.receipt ?? null);
     if (!current || !confirmedReceipt) return;
     if (confirmedReceipt.blockingErrors.length > 0) return;
-    saveSession({
-      ...current,
-      status: "assigning",
-      receipt: confirmedReceipt,
-      confirmedReceipt,
-      assignments: [],
-    });
+    saveSession({ ...current, status: "assigning", receipt: confirmedReceipt, confirmedReceipt, assignments: [] });
     router.push("/assign");
   };
 
   const goBack = () => {
     saveReceiptDraft();
-    router.back();
+    router.push("/members");
   };
 
+  const merchant = session?.receipt?.merchantName?.trim();
+  const purchasedAt = session?.receipt?.purchasedAt?.trim();
+
   return (
-    <div className="pb-32">
-      <Sheet>
-        <StepIndicator current={3} />
+    <div className="fade-in mx-auto w-full max-w-[460px]">
+      <h1 className="font-hand text-[2rem] leading-tight text-[var(--color-ink)]">영수증이 맞나요?</h1>
+      <p className="font-hand mt-2 text-[1.05rem] text-[var(--color-graphite)]">
+        틀린 칸은 눌러서 고치고, 빠진 건 더하고, 잘못 들어온 건 지워 주세요.
+      </p>
 
-        <div className="mt-5 mb-6">
-          <h1 className="font-hand text-[2.1rem] leading-tight text-[var(--color-ink-deep)] sm:text-[2.4rem]">
-            영수증 확인
-          </h1>
-          <p className="font-hand mt-2 text-lg text-[var(--color-ink-soft)]">
-            잘못 읽힌 항목이 있나요? 칸을 눌러서 바로 고치면 돼요.
-          </p>
+      {!hasReceipt && (
+        <InfoNote glyph="!" className="mt-6">
+          아직 읽은 영수증이 없어요. 처음 화면에서 영수증을 먼저 올려 주세요.
+        </InfoNote>
+      )}
+      {hasInvalid && (
+        <InfoNote glyph="!" className="mt-6">
+          비어 있거나 0인 칸이 있어요. 채워야 다음으로 넘어갈 수 있어요.
+        </InfoNote>
+      )}
+
+      <SketchFrame
+        radius={20}
+        fill="#f5f5f5"
+        stroke="ink"
+        shadow="soft"
+        wobble={0.5}
+        strokeWidth={2.4}
+        className="mt-6"
+        contentClassName="px-5 py-5 sm:px-6"
+      >
+        {/* receipt header — store name as the receipt's own heading */}
+        <div className="mb-1 text-center">
+          <p className="font-hand text-[1.3rem] leading-tight text-[var(--color-ink)]">{merchant || "영수증"}</p>
+          {purchasedAt && <p className="font-data mt-0.5 text-[0.82rem] tracking-wide text-[var(--color-ash)]">{purchasedAt}</p>}
         </div>
+        <WavyDivider double tone="muted" className="my-3.5" />
+        <ul>
+          {items.map((it) => (
+            <ItemRow key={it.id} item={it} onChange={(patch) => update(it.id, patch)} onRemove={() => remove(it.id)} />
+          ))}
+        </ul>
 
-        {hasInvalid && (
-          <SketchFrame
-            radius={14}
-            fill="#fafafa"
-            stroke="soft"
-            className="mb-4"
-            contentClassName="flex items-start gap-2.5 px-4 py-3 font-hand text-base text-[var(--color-ink)]"
-          >
-            <IconAlert className="mt-[3px] h-5 w-5 shrink-0" />
-            <span className="min-w-0 leading-snug">
-              비어 있거나 0인 칸을 채워야 다음으로 넘어갈 수 있어요.
-            </span>
-          </SketchFrame>
-        )}
-
-        {hasReceipt && !hasEnoughMembers && (
-          <SketchFrame
-            radius={14}
-            fill="#fafafa"
-            stroke="soft"
-            className="mb-4"
-            contentClassName="flex items-start gap-2.5 px-4 py-3 font-hand text-base text-[var(--color-ink)]"
-          >
-            <IconAlert className="mt-[3px] h-5 w-5 shrink-0" />
-            <span className="min-w-0 leading-snug">
-              두 명 이상 있어야 정산을 시작할 수 있어요.
-            </span>
-          </SketchFrame>
-        )}
-
-        {!hasReceipt && (
-          <SketchFrame
-            radius={14}
-            fill="#fafafa"
-            stroke="soft"
-            className="mb-4"
-            contentClassName="flex items-start gap-2.5 px-4 py-3 font-hand text-base text-[var(--color-ink)]"
-          >
-            <IconAlert className="mt-[3px] h-5 w-5 shrink-0" />
-            <span className="min-w-0 leading-snug">
-              분석된 영수증이 없어요. 처음 화면에서 파일을 먼저 선택해 주세요.
-            </span>
-          </SketchFrame>
-        )}
-
-        {/* Receipt — list of editable items */}
-        <SketchFrame
-          radius={20}
-          fill="#fafafa"
-          shadow="soft"
-          contentClassName="px-4 py-4 sm:px-5"
+        <button
+          ref={addButtonRef}
+          type="button"
+          onClick={add}
+          className="group mt-3 inline-flex items-center gap-2 text-[var(--color-graphite)] transition-colors hover:text-[var(--color-ink)]"
         >
-          <div className="mb-3 flex items-center gap-2">
-            <span className="font-hand text-base text-[var(--color-ink-soft)]">
-              읽힌 항목 · {items.length}개
-            </span>
-            <span className="h-[1px] flex-1 bg-[var(--color-ink-line)]" />
-          </div>
+          <IconPlus className="h-4 w-4" />
+          <span className="font-hand text-[1.02rem]">항목 더하기</span>
+        </button>
 
-          {items.length === 0 ? (
-            <p className="font-hand py-6 text-center text-[var(--color-ink-soft)]">
-              항목이 없어요. 아래에서 추가해 주세요.
-            </p>
-          ) : (
-            <ul className="space-y-2">
-              {items.map((it) => (
-                <ItemRow
-                  key={it.id}
-                  item={it}
-                  onChange={(patch) => update(it.id, patch)}
-                  onRemove={() => remove(it.id)}
-                />
-              ))}
-            </ul>
-          )}
-
-          <div className="mt-4 flex justify-center">
-            <button
-              ref={addButtonRef}
-              type="button"
-              onClick={add}
-              className="group inline-flex items-center gap-2 text-[var(--color-ink-soft)] transition-colors hover:text-[var(--color-ink-deep)]"
-            >
-              <span className="relative grid h-8 w-8 place-items-center">
-                <span
-                  className="absolute inset-0 rounded-full border-[2px] border-[var(--color-ink)] transition-shadow group-hover:shadow-[2px_2px_0_rgba(38,38,38,0.18)]"
-                  aria-hidden
-                />
-                <IconPlus className="relative h-4 w-4" />
-              </span>
-              <span className="font-hand text-lg">항목 추가</span>
-            </button>
-          </div>
-        </SketchFrame>
-
-        {/* Total */}
-        {session?.receipt && session.receipt.adjustments.length > 0 && (
-          <div className="mt-4 space-y-1 border-t-2 border-dashed border-[var(--color-ink-line)] pt-3">
-            {session.receipt.adjustments.map((adjustment) => (
-              <div
-                key={adjustment.id}
-                className="flex items-center justify-between font-data text-base text-[var(--color-ink-soft)]"
-              >
-                <span>{adjustment.name}</span>
-                <span>₩{fmt(adjustment.amount)}</span>
+        <div className="mt-5">
+          {adjustments.length > 0 && (
+            <>
+              <div className="flex items-center justify-between font-data text-[0.98rem] text-[var(--color-graphite)]">
+                <span className="font-hand">품목 합계</span>
+                <span>{fmt(itemSubtotal)}원</span>
               </div>
-            ))}
-          </div>
-        )}
-
-        <div className="mt-5 space-y-2 border-t-2 border-dashed border-[var(--color-ink-soft)] pt-4">
-          <div className="flex items-center justify-between font-data text-base text-[var(--color-ink-soft)]">
-            <span>품목 합계</span>
-            <span>₩{fmt(itemSubtotal)}</span>
-          </div>
-          {adjustmentTotal !== 0 && (
-            <div className="flex items-center justify-between font-data text-base text-[var(--color-ink-soft)]">
-              <span>할인/수수료</span>
-              <span>₩{fmt(adjustmentTotal)}</span>
-            </div>
+              {adjustments.map((a) => (
+                <div key={a.id} className="mt-1 flex items-center justify-between font-data text-[0.98rem] text-[var(--color-graphite)]">
+                  <span className="font-hand">{shortAdj(a.name)}</span>
+                  <span>{fmt(a.amount)}원</span>
+                </div>
+              ))}
+            </>
           )}
-          <div className="flex items-center justify-between gap-4 pt-1">
-            <span className="font-hand text-lg text-[var(--color-ink)]">
-              최종 합계
-            </span>
-            <div className="font-data money-text text-3xl font-bold text-[var(--color-ink-deep)]">
-              ₩{fmt(computedTotal)}
-            </div>
+          <WavyDivider tone="soft" className="my-3" />
+          <div className="flex items-end justify-between">
+            <span className="font-hand text-[1.15rem] text-[var(--color-ink)]">최종 합계</span>
+            <span className="font-data money-text text-[1.8rem] leading-none text-[var(--color-ink)]">{fmt(computedTotal)}원</span>
           </div>
         </div>
-      </Sheet>
+      </SketchFrame>
 
-      {/* Bottom action bar */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30">
-        <div className="mx-auto w-full max-w-[760px] px-4 pb-4 sm:pb-6">
-          <SketchFrame
-            radius={20}
-            shadow="drop"
-            className="pointer-events-auto"
-            contentClassName="flex items-center justify-between gap-3 px-4 py-3 sm:px-5"
-          >
-            <button
-              type="button"
-              onClick={goBack}
-              className="inline-flex items-center gap-1.5 font-hand text-lg text-[var(--color-ink-soft)] transition-colors hover:text-[var(--color-ink-deep)]"
-            >
-              <IconArrowLeft className="h-4 w-4" />
-              이전
-            </button>
-            <SketchButton
-              onClick={confirmReceipt}
-              disabled={!canConfirm}
-            >
-              확인
-            </SketchButton>
-          </SketchFrame>
-        </div>
+      <div className="mt-10 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={goBack}
+          className="inline-flex items-center gap-1.5 font-hand text-[1.02rem] text-[var(--color-graphite)] transition-colors hover:text-[var(--color-ink)]"
+        >
+          <IconArrowLeft className="h-4 w-4" /> 이전
+        </button>
+        <SketchButton onClick={confirmReceipt} disabled={!canConfirm}>
+          나누러 가기
+        </SketchButton>
       </div>
     </div>
   );
 }
 
-/* ──────────────── Sub components ──────────────── */
+/* ── rows ── */
 
 function ItemRow({
   item,
@@ -357,115 +233,50 @@ function ItemRow({
   const priceMissing = !item.unitPrice || item.unitPrice <= 0;
 
   return (
-    <li className="rounded-xl border-2 border-dashed border-[var(--color-ink-line)] px-3 py-2.5">
-      <div className="flex items-start gap-2">
+    <li className="border-b border-dashed border-[var(--color-ash)]/40 py-3 last:border-b-0">
+      <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1">
-          <EditableCell
-            value={item.name}
-            placeholder="이름 없음"
-            family="hand"
-            align="left"
-            invalid={nameMissing}
-            onChange={(v) => onChange({ name: v })}
-            large
-          />
+          <EditableCell value={item.name} placeholder="이름 없음" invalid={nameMissing} onChange={(v) => onChange({ name: v })} />
         </div>
+        <span className="font-data money-text shrink-0 text-[1.05rem] text-[var(--color-ink)]">{fmt(lineTotal)}원</span>
         <button
           type="button"
           onClick={onRemove}
-          aria-label="삭제"
-          className="mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-full text-[var(--color-ink-soft)] transition-colors hover:bg-[var(--color-ink-line)]/60 hover:text-[var(--color-ink-deep)]"
+          aria-label="이 항목 지우기"
+          className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[var(--color-ash)] transition-colors hover:text-[var(--color-ink)]"
         >
           <IconClose className="h-4 w-4" />
         </button>
       </div>
-
-      <div className="mt-2 grid gap-2 pr-1 sm:grid-cols-[1fr_auto] sm:items-center">
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1 sm:flex sm:items-center sm:gap-1.5">
-          <div className="flex min-w-0 items-center gap-1.5">
-            <FieldLabel>수량</FieldLabel>
-            <EditableNumber
-              value={item.quantity}
-              align="center"
-              invalid={qtyMissing}
-              onChange={(v) => onChange({ quantity: v })}
-              suffix="개"
-              width={64}
-            />
-          </div>
-          <span className="hidden font-data text-base text-[var(--color-ink-mute)] sm:inline">
-            ×
-          </span>
-          <div className="flex min-w-0 items-center gap-1.5">
-            <FieldLabel>단가</FieldLabel>
-            <EditableNumber
-              value={item.unitPrice}
-              align="right"
-              invalid={priceMissing}
-              onChange={(v) => onChange({ unitPrice: v })}
-              prefix="₩"
-              width={98}
-            />
-          </div>
-        </div>
-        <div className="font-data money-text justify-self-end text-lg font-semibold text-[var(--color-ink-deep)]">
-          ₩{lineTotal.toLocaleString("ko-KR")}
-        </div>
+      <div className="mt-0.5 flex items-center gap-1.5 pl-1 text-[var(--color-graphite)]">
+        <EditableNumber value={item.quantity} align="left" invalid={qtyMissing} onChange={(v) => onChange({ quantity: v })} suffix="개" width={44} />
+        <span className="font-data text-[0.9rem] text-[var(--color-ash)]">×</span>
+        <EditableNumber value={item.unitPrice} align="left" invalid={priceMissing} onChange={(v) => onChange({ unitPrice: v })} suffix="원" width={86} />
       </div>
     </li>
-  );
-}
-
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="font-hand whitespace-nowrap text-[0.85rem] uppercase tracking-wider text-[var(--color-ink-mute)]">
-      {children}
-    </span>
   );
 }
 
 function EditableCell({
   value,
   placeholder,
-  family,
-  align,
   invalid,
   onChange,
-  large,
 }: {
   value: string;
   placeholder?: string;
-  family: "hand" | "data";
-  align: "left" | "center" | "right";
   invalid?: boolean;
   onChange: (v: string) => void;
-  large?: boolean;
 }) {
-  const fontCls =
-    family === "hand"
-      ? `font-hand ${large ? "text-xl" : "text-lg"}`
-      : `font-data ${large ? "text-xl" : "text-lg"}`;
-  const alignCls =
-    align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left";
-
   return (
-    <div
-      className={`editable-cell relative ${
-        invalid ? "rounded-md bg-[#f6e9e9]/40" : ""
-      }`}
-    >
+    <div className="editable-cell relative">
       <input
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className={`w-full bg-transparent px-1 py-1 ${fontCls} ${alignCls} text-[var(--color-ink-deep)] outline-none placeholder:text-[var(--color-ink-mute)]`}
+        className="w-full bg-transparent py-0.5 font-hand text-[1.12rem] text-[var(--color-ink)] outline-none placeholder:text-[var(--color-ash)]"
       />
-      {invalid && (
-        <IconAlert
-          className="pointer-events-none absolute -right-1 -top-1 h-4 w-4 text-[var(--color-ink-deep)]"
-          aria-hidden
-        />
-      )}
+      {invalid && <IconAlert className="pointer-events-none absolute -right-1 top-0 h-4 w-4 text-[var(--color-ink)]" aria-hidden />}
     </div>
   );
 }
@@ -480,18 +291,16 @@ function EditableNumber({
   width,
 }: {
   value: number;
-  align: "left" | "center" | "right";
+  align: "left" | "right";
   invalid?: boolean;
   onChange: (v: number) => void;
   prefix?: string;
   suffix?: string;
   width?: number;
 }) {
-  const alignCls =
-    align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left";
+  const alignCls = align === "right" ? "text-right" : "text-left";
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<string>(String(value));
-
   const commit = () => {
     const cleaned = draft.replace(/[^0-9]/g, "");
     const n = cleaned === "" ? 0 : parseInt(cleaned, 10);
@@ -499,14 +308,8 @@ function EditableNumber({
     setDraft(String(n));
     setEditing(false);
   };
-
   return (
-    <div
-      className={`editable-cell relative ${
-        invalid ? "rounded-md bg-[#f6e9e9]/40" : ""
-      }`}
-      style={width ? { width } : undefined}
-    >
+    <div className={`editable-cell relative ${invalid ? "text-[var(--color-ink)]" : ""}`} style={width ? { width } : undefined}>
       <input
         value={editing ? draft : `${prefix ?? ""}${value.toLocaleString("ko-KR")}${suffix ?? ""}`}
         onFocus={() => {
@@ -519,14 +322,8 @@ function EditableNumber({
         }}
         onChange={(e) => setDraft(e.target.value)}
         inputMode="numeric"
-        className={`w-full bg-transparent px-1 py-1 font-data text-lg ${alignCls} text-[var(--color-ink-deep)] outline-none`}
+        className={`w-full bg-transparent py-0.5 font-data text-[0.98rem] ${alignCls} ${invalid ? "text-[var(--color-ink)]" : "text-[var(--color-graphite)]"} outline-none`}
       />
-      {invalid && (
-        <IconAlert
-          className="pointer-events-none absolute -right-1 -top-1 h-4 w-4 text-[var(--color-ink-deep)]"
-          aria-hidden
-        />
-      )}
     </div>
   );
 }

@@ -1,33 +1,29 @@
 "use client";
 
 import type { HTMLAttributes, PropsWithChildren } from "react";
-import { SketchRectVisual } from "./Sketch";
+import { SketchRectVisual, PAPER } from "./Sketch";
 
 type SheetProps = PropsWithChildren<HTMLAttributes<HTMLDivElement>> & {
   compact?: boolean;
 };
 
 /**
- * Paper-style frame used as the main canvas for each step. It's drawn with
- * SketchRectVisual so the border is genuinely hand-drawn rather than relying
- * on CSS filters that would distort child text as a side effect.
+ * The paper sheet each step is written on. Same paper tone as the desk
+ * underneath — it reads as a separate sheet only through its hand-drawn
+ * outline and the soft drop shadow lifting it off the page (see
+ * design_assets/elevation.svg).
  */
-export function Sheet({
-  children,
-  className = "",
-  compact = false,
-  ...rest
-}: SheetProps) {
-  const padding = compact ? "px-5 py-6 sm:px-8 sm:py-8" : "px-6 py-8 sm:px-10 sm:py-12";
+export function Sheet({ children, className = "", compact = false, ...rest }: SheetProps) {
+  const padding = compact ? "px-5 py-6 sm:px-8 sm:py-9" : "px-6 py-8 sm:px-12 sm:py-12";
 
   return (
     <div className={`relative ${className}`} {...rest}>
       <SketchRectVisual
-        radius={22}
-        fill="#ffffff"
+        radius={24}
+        fill={PAPER}
         stroke="ink"
         shadow="drop"
-        wobble={0.65}
+        wobble={0.7}
         strokeWidth={2.6}
         seed={3}
       />

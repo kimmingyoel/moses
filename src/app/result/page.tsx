@@ -5,30 +5,17 @@ import { useRouter } from "next/navigation";
 import { calculateSettlement, formatSettlementClipboard } from "@/lib/receipt";
 import { loadSession } from "@/lib/session";
 import {
-  Sheet,
   SketchFrame,
-  SketchRectVisual,
   SketchButton,
+  WavyDivider,
   Avatar,
   IconCheck,
-  IconSparkle,
+  IconCopy,
   IconChevron,
-  IconArrowLeft,
 } from "@/components/sketch";
 
-type ResultItem = {
-  name: string;
-  units: number;
-  amount: number;
-  splitWith?: number;
-};
-
-type Result = {
-  id: number;
-  name: string;
-  total: number;
-  items: ResultItem[];
-};
+type ResultItem = { name: string; amount: number; splitWith?: number };
+type Result = { id: number; name: string; total: number; items: ResultItem[] };
 
 const fmt = (n: number) => Math.round(n).toLocaleString("ko-KR");
 
@@ -43,27 +30,11 @@ export default function ResultPage() {
     const timer = window.setTimeout(() => {
       const session = loadSession();
       setLoaded(true);
-      if (!session) {
-        router.replace("/");
-        return;
-      }
-      if (!session.confirmedReceipt) {
-        router.replace(session.receipt ? "/review" : "/");
-        return;
-      }
-      if (session.assignments.length === 0) {
-        router.replace("/assign");
-        return;
-      }
-      const settlement = calculateSettlement(
-        session.confirmedReceipt,
-        session.members,
-        session.assignments,
-      );
-      if (settlement.blockingErrors.length > 0) {
-        router.replace("/assign");
-        return;
-      }
+      if (!session) return void router.replace("/");
+      if (!session.confirmedReceipt) return void router.replace(session.receipt ? "/review" : "/");
+      if (session.assignments.length === 0) return void router.replace("/assign");
+      const settlement = calculateSettlement(session.confirmedReceipt, session.members, session.assignments);
+      if (settlement.blockingErrors.length > 0) return void router.replace("/assign");
       setResults(
         settlement.members.map((member, index) => ({
           id: index + 1,
@@ -72,19 +43,10 @@ export default function ResultPage() {
           items: [
             ...member.items.map((item) => ({
               name: item.name,
-              units: 1,
               amount: item.amount,
               splitWith: item.sharedWith > 1 ? item.sharedWith : undefined,
             })),
-            ...(member.adjustmentTotal !== 0
-              ? [
-                  {
-                    name: "할인/수수료 배분",
-                    units: 1,
-                    amount: member.adjustmentTotal,
-                  },
-                ]
-              : []),
+            ...(member.adjustmentTotal !== 0 ? [{ name: "할인·수수료", amount: member.adjustmentTotal }] : []),
           ],
         })),
       );
@@ -92,39 +54,34 @@ export default function ResultPage() {
     return () => window.clearTimeout(timer);
   }, [router]);
 
-  const grandTotal = useMemo(
-    () => results.reduce((sum, r) => sum + r.total, 0),
-    [results]
-  );
+  const grandTotal = useMemo(() => results.reduce((s, r) => s + r.total, 0), [results]);
 
   const toggle = (id: number) =>
     setExpanded((s) => {
-      const next = new Set(s);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
     });
 
   const copyToClipboard = async () => {
     if (results.length === 0) return;
-    const lines = [
-      formatSettlementClipboard({
-        members: results.map((result) => ({
-          memberId: String(result.id),
-          memberName: result.name,
-          grossItemTotal: result.total,
-          adjustmentTotal: 0,
-          finalAmount: result.total,
-          items: [],
-        })),
-        grandTotal,
-        blockingErrors: [],
-      }),
-    ];
+    const text = formatSettlementClipboard({
+      members: results.map((r) => ({
+        memberId: String(r.id),
+        memberName: r.name,
+        grossItemTotal: r.total,
+        adjustmentTotal: 0,
+        finalAmount: r.total,
+        items: [],
+      })),
+      grandTotal,
+      blockingErrors: [],
+    });
     try {
-      await navigator.clipboard.writeText(lines.join(""));
+      await navigator.clipboard.writeText(text);
     } catch {
-      /* ignore — UI demo */
+      /* ignore */
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
@@ -132,196 +89,111 @@ export default function ResultPage() {
 
   if (!loaded || results.length === 0) {
     return (
-      <div className="pb-10">
-        <Sheet>
-          <p className="font-hand text-center text-xl text-[var(--color-ink-soft)]">
-            정산 결과를 불러오는 중...
-          </p>
-        </Sheet>
+      <div className="mx-auto w-full max-w-[460px]">
+        <p className="font-hand text-[1.2rem] text-[var(--color-graphite)]">정산 결과를 정리하고 있어요…</p>
       </div>
     );
   }
 
   return (
-    <div className="pb-10">
-      <Sheet>
-        {/* Ribbon-ish title */}
-        <div className="mb-6 flex justify-center">
-          <div className="relative inline-block">
-            <SketchRectVisual
-              radius={999}
-              fill="#262626"
-              stroke="ink"
-              shadow="drop"
-              wobble={0.55}
-              strokeWidth={2.4}
-            />
-            <span className="relative inline-block px-6 py-2 font-hand text-2xl text-white">
-              정산 결과
-            </span>
-          </div>
-        </div>
+    <div className="fade-in mx-auto w-full max-w-[460px]">
+      <h1 className="font-hand text-[2rem] leading-tight text-[var(--color-ink)]">정산 끝! 이렇게 나눠요</h1>
+      <p className="font-hand mt-2 text-[1.05rem] text-[var(--color-graphite)]">
+        먼저 낸 사람에게, 각자 아래 금액만큼 보내 주면 끝이에요. 이름을 누르면 자세히 볼 수 있어요.
+      </p>
 
-        <div className="mb-7 text-center">
-          <p className="font-hand text-base text-[var(--color-ink-soft)]">
-            총 정산 금액
-          </p>
-          <p className="font-data money-text mt-1 text-4xl font-bold text-[var(--color-ink-deep)]">
-            ₩{fmt(grandTotal)}
-          </p>
-        </div>
-
-        <ul className="space-y-3">
+      <SketchFrame
+        radius={20}
+        fill="#f5f5f5"
+        stroke="ink"
+        shadow="soft"
+        wobble={0.5}
+        strokeWidth={2.4}
+        className="mt-7"
+        contentClassName="px-5 py-3 sm:px-6"
+      >
+        <ul>
           {results.map((r) => {
-            const isOpen = expanded.has(r.id);
-            return (
-              <li key={r.id}>
-                <SketchFrame radius={20} shadow="soft">
-                  <button
-                    type="button"
-                    onClick={() => toggle(r.id)}
-                    className="flex w-full items-center gap-3 px-4 py-3.5 text-left"
-                  >
-                    <Avatar name={r.name} size={44} />
-                    <div className="min-w-0 flex-1">
-                      <p className="font-hand text-xl leading-tight text-[var(--color-ink-deep)]">
-                        {r.name}
-                      </p>
-                      <p className="font-hand text-base text-[var(--color-ink-soft)]">
-                        항목 {r.items.length}개
-                      </p>
-                    </div>
-                    <span className="font-data money-text text-2xl font-bold text-[var(--color-ink-deep)]">
-                      ₩{fmt(r.total)}
-                    </span>
-                    <span
-                      className={`grid h-7 w-7 shrink-0 place-items-center text-[var(--color-ink-soft)] transition-transform duration-200 ${
-                        isOpen ? "rotate-180" : ""
-                      }`}
-                      aria-hidden
+          const open = expanded.has(r.id);
+          return (
+            <li key={r.id} className="border-b border-dashed border-[var(--color-ash)]/40 last:border-b-0">
+              <button type="button" onClick={() => toggle(r.id)} className="flex w-full items-center gap-3 py-3.5 text-left">
+                <Avatar name={r.name} size={40} />
+                <span className="font-hand flex-1 text-[1.2rem] text-[var(--color-ink)]">{r.name}</span>
+                <span className="font-data money-text text-[1.4rem] text-[var(--color-ink)]">{fmt(r.total)}원</span>
+                <span className={`grid h-6 w-6 shrink-0 place-items-center text-[var(--color-ash)] transition-transform duration-200 ${open ? "rotate-180" : ""}`} aria-hidden>
+                  <IconChevron className="h-4 w-4" />
+                </span>
+              </button>
+              <ExpandPanel open={open}>
+                <ul className="pb-3 pl-[52px]">
+                  {r.items.map((it, idx) => (
+                    <li
+                      key={idx}
+                      className={`flex items-center justify-between gap-3 py-1 ${open ? "expand-item-enter" : ""}`}
+                      style={open ? { animationDelay: `${idx * 35}ms` } : undefined}
                     >
-                      <IconChevron className="h-4 w-4" />
-                    </span>
-                  </button>
-
-                  <ExpandPanel open={isOpen}>
-                    <div className="px-4 pb-3">
-                      {/* Divider sits inside the padding so it never reaches
-                          the outer hand-drawn stroke. */}
-                      <div className="mb-3 border-t-2 border-dashed border-[var(--color-ink-line)]" />
-                      <ul className="divide-y divide-dashed divide-[var(--color-ink-line)]">
-                        {r.items.map((it, idx) => (
-                          <li
-                            key={idx}
-                            className={`flex items-center justify-between gap-3 py-2 ${
-                              isOpen ? "expand-item-enter" : ""
-                            }`}
-                            style={
-                              isOpen
-                                ? { animationDelay: `${idx * 40}ms` }
-                                : undefined
-                            }
-                          >
-                            <div className="flex min-w-0 items-center gap-2">
-                              <span className="font-data truncate text-lg text-[var(--color-ink-deep)]">
-                                {it.name}
-                              </span>
-                              {it.units > 1 && (
-                                <span className="font-data text-base text-[var(--color-ink-soft)]">
-                                  × {it.units}
-                                </span>
-                              )}
-                              {it.splitWith && (
-                                <SplitBadge>{it.splitWith}명 나눔</SplitBadge>
-                              )}
-                            </div>
-                            <span className="font-data money-text shrink-0 text-lg text-[var(--color-ink-deep)]">
-                              ₩{fmt(it.amount)}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </ExpandPanel>
-                </SketchFrame>
-              </li>
-            );
-          })}
+                      <span className="font-hand truncate text-[1rem] text-[var(--color-graphite)]">
+                        {it.name}
+                        {it.splitWith && <span className="text-[var(--color-ash)]"> · {it.splitWith}명 나눔</span>}
+                      </span>
+                      <span className="font-data money-text shrink-0 text-[0.98rem] text-[var(--color-graphite)]">{fmt(it.amount)}원</span>
+                    </li>
+                  ))}
+                </ul>
+              </ExpandPanel>
+            </li>
+          );
+        })}
         </ul>
 
-        <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-center">
-          <SketchButton onClick={copyToClipboard}>
-            {copied ? (
-              <>
-                <IconCheck className="h-5 w-5" /> 복사 완료!
-              </>
-            ) : (
-              <>
-                <IconSparkle className="h-4 w-4" /> 클립보드에 복사
-              </>
-            )}
-          </SketchButton>
-          <SketchButton variant="ghost" onClick={() => router.push("/")}>
-            <IconArrowLeft className="h-4 w-4" /> 처음으로
-          </SketchButton>
+        <WavyDivider tone="soft" className="mt-3" />
+        <div className="mt-3 flex items-end justify-between">
+          <span className="font-hand text-[1.05rem] text-[var(--color-graphite)]">다 합쳐</span>
+          <span className="font-data money-text text-[1.4rem] text-[var(--color-ink)]">{fmt(grandTotal)}원</span>
         </div>
+      </SketchFrame>
 
-        <p className="font-hand mt-6 text-center text-base text-[var(--color-ink-mute)]">
-          총무가 대표 결제하고, 위 금액을 받아주세요 ☕
-        </p>
-      </Sheet>
+      <div className="mt-8 flex items-center gap-3">
+        <SketchButton onClick={copyToClipboard}>
+          {copied ? (
+            <>
+              <IconCheck className="h-5 w-5" /> 복사했어요!
+            </>
+          ) : (
+            <>
+              <IconCopy className="h-5 w-5" /> 결과 복사
+            </>
+          )}
+        </SketchButton>
+        <button
+          type="button"
+          onClick={() => router.push("/")}
+          className="font-hand text-[1.02rem] text-[var(--color-graphite)] transition-colors hover:text-[var(--color-ink)]"
+        >
+          처음부터 다시
+        </button>
+      </div>
     </div>
   );
 }
 
-function ExpandPanel({
-  open,
-  children,
-}: {
-  open: boolean;
-  children: React.ReactNode;
-}) {
+function ExpandPanel({ open, children }: { open: boolean; children: React.ReactNode }) {
   const innerRef = useRef<HTMLDivElement | null>(null);
-  const [contentHeight, setContentHeight] = useState(0);
-
+  const [h, setH] = useState(0);
   useLayoutEffect(() => {
     const node = innerRef.current;
     if (!node) return;
-    const measure = () => setContentHeight(node.scrollHeight);
+    const measure = () => setH(node.scrollHeight);
     measure();
     if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(node);
-    return () => observer.disconnect();
+    const ro = new ResizeObserver(measure);
+    ro.observe(node);
+    return () => ro.disconnect();
   }, []);
-
   return (
-    <div
-      className="expand-panel"
-      style={{
-        maxHeight: open ? contentHeight : 0,
-        opacity: open ? 1 : 0,
-      }}
-      aria-hidden={!open}
-    >
+    <div className="expand-panel" style={{ maxHeight: open ? h : 0, opacity: open ? 1 : 0 }} aria-hidden={!open}>
       <div ref={innerRef}>{children}</div>
     </div>
-  );
-}
-
-function SplitBadge({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="relative inline-block">
-      <SketchRectVisual
-        radius={999}
-        fill="#fafafa"
-        stroke="soft"
-        wobble={0.4}
-        strokeWidth={1.6}
-      />
-      <span className="font-hand relative inline-block px-2 text-[0.85rem] text-[var(--color-ink-soft)]">
-        {children}
-      </span>
-    </span>
   );
 }

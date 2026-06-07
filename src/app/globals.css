@@ -1,55 +1,45 @@
 @import "tailwindcss";
 
-/* ──────────────── Fonts ──────────────── */
+/* ════════════════════════════════════════════════════════════════════════
+   모세 — minimal hand-drawn settlement UI.
+   Ink on plain paper. Hand-drawn strokes used as accents, not around every
+   element. Only the four palette grays. Two faces only: PyeongChang for the
+   wordmark, and one handwriting face for everything else — figures included.
+   ════════════════════════════════════════════════════════════════════════ */
 
+/* ── Fonts ── */
+
+/* Wordmark "모세" — used ONLY in the logo, nowhere else. */
 @font-face {
-  font-family: "PyeongChangPeace";
-  src: url("/fonts/pyeongchang-peace-bold.woff2") format("woff2");
+  font-family: "PyeongChang";
+  src: url("/fonts/PyeongChangPeace-Bold.woff2") format("woff2");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
 
+/* The one handwriting voice — headings, body, labels, guides. */
 @font-face {
-  font-family: "Orbit";
-  src: url("/fonts/Orbit-Regular.woff2") format("woff2");
+  font-family: "Hand";
+  src: url("/fonts/MemomentKkukkukk.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
-
-@font-face {
-  font-family: "OnGeurip-Nuka";
-  src: url("/fonts/on-geurip-nuka.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* ──────────────── Design tokens ──────────────── */
 
 @theme {
-  --font-logo: "PyeongChangPeace", serif;
-  --font-data: "Orbit", "Courier New", monospace;
-  --font-hand: "OnGeurip-Nuka", system-ui, sans-serif;
+  --font-logo: "PyeongChang", serif;
+  --font-hand: "Hand", system-ui, sans-serif;
 
-  /* Pure grayscale — bright paper at top, deep ink at bottom. */
-  --color-paper: #fafafa;
-  --color-paper-soft: #f2f2f2;
-  --color-paper-deep: #e6e6e6;
-  --color-ink-line: #d4d4d4;
-  --color-ink-mute: #9e9e9e;
-  --color-ink-soft: #585858;
+  --color-paper: #f5f5f5;
   --color-ink: #262626;
-  --color-ink-deep: #111111;
+  --color-graphite: #666666;
+  --color-ash: #9e9e9e;
 }
 
-/* ──────────────── Base ──────────────── */
+/* ── Base ── */
 
 html {
-  /* Anchors the body's `min-h-screen` to the actual viewport rather than
-   * letting it collapse to its content. Without this the upload/members
-   * pages can't vertically center against the viewport. */
   height: 100%;
 }
 
@@ -63,192 +53,235 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Single flat paper tone everywhere. We dropped the radial gradients that
- * used to drift around the viewport — on tall pages they made the top and
- * the bottom of the page look like different shades of paper. */
-
-/* Smooth route transitions */
+/* Quiet cross-fade between steps — no movement, no tilt. */
 @view-transition {
   navigation: auto;
 }
-
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation-duration: 220ms;
-  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  animation-duration: 180ms;
+  animation-timing-function: ease;
 }
 
-/* ──────────────── Utilities ──────────────── */
+/* ── Font utilities ── */
 
 .font-logo {
   font-family: var(--font-logo);
 }
-
-.font-hand {
+/* Handwriting class names all resolve to the single hand face. */
+.font-hand,
+.font-title,
+.font-note {
   font-family: var(--font-hand);
 }
-
+/* Numbers use the same handwriting face — the logo (PyeongChang) is the only
+ * other typeface. No monospace anywhere. */
 .font-data {
-  font-family: var(--font-data);
+  font-family: var(--font-hand);
   letter-spacing: 0;
 }
-
 .money-text {
   letter-spacing: 0;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
 }
 
-/* ─── Rolling currency animation ─── */
+/* ── Quiet content fade. Opacity ONLY — no transform, because a lingering
+   transform on this container would reparent any descendant position:fixed
+   (the drag ghost) and shove it sideways. ── */
+@keyframes fade-soft {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.fade-in {
+  animation: fade-soft 240ms ease both;
+}
+
+/* ── Rolling currency (amount transitions) ── */
 .rolling-amount {
   display: inline-flex;
   align-items: baseline;
-  justify-content: center;
+  justify-content: flex-end;
   white-space: nowrap;
   letter-spacing: 0;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
 }
-
 .rolling-amount__char {
   display: inline-block;
   text-align: center;
 }
-
 .rolling-amount__digit {
-  min-width: 0.54em;
+  min-width: 0.56em;
 }
-
 .rolling-amount__separator {
-  min-width: 0.18em;
+  min-width: 0.2em;
   margin-inline: -0.01em;
 }
-
 .rolling-amount__digit--changed {
-  animation: digit-roll 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: digit-roll 440ms cubic-bezier(0.22, 1, 0.36, 1);
 }
-
 @keyframes digit-roll {
   0% {
-    opacity: 0.35;
+    opacity: 0.3;
     transform: translateY(0.7em);
   }
   55% {
     opacity: 1;
-    transform: translateY(-0.12em);
+    transform: translateY(-0.1em);
   }
   100% {
     transform: translateY(0);
   }
 }
 
-/* ─── Expandable detail (result page) ─── */
-/* The max-height is set from JS to the actual scroll height so the easing
- * curve animates over the full duration. The line-item children fade in
- * with a small stagger for a noticeably "unrolling" feel. */
+/* ── Count bump (a person's total when something lands) ── */
+@keyframes count-bump {
+  0% {
+    transform: translateY(0);
+  }
+  45% {
+    transform: translateY(-4px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+.animate-count-bump {
+  animation: count-bump 0.36s ease-out;
+}
+
+/* ── Expandable detail (result) ── */
 .expand-panel {
   overflow: hidden;
   transform: translateZ(0);
   contain: layout paint;
   transition:
-    max-height 320ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 220ms ease;
+    max-height 300ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms ease;
 }
-
 @keyframes expand-item-fade-in {
-  0% {
+  from {
     opacity: 0;
     transform: translateY(-4px);
   }
-  100% {
+  to {
     opacity: 1;
     transform: translateY(0);
   }
 }
-
 .expand-item-enter {
-  animation: expand-item-fade-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: expand-item-fade-in 240ms ease both;
 }
 
-/* ─── Icon "nudge" animation (used for upload icon) ─── */
+/* ── Upload icon nudge ── */
 @keyframes nudge {
-  0%, 100% { transform: translateY(0) rotate(0); }
-  25% { transform: translateY(-3px) rotate(-3deg); }
-  50% { transform: translateY(-5px) rotate(2deg); }
-  75% { transform: translateY(-3px) rotate(-1deg); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
 }
-
 .animate-nudge {
   animation: nudge 1.4s ease-in-out infinite;
 }
 
-/* ─── Loading shimmer (OCR banner — continuous L→R sweep, no held gap) ─── */
-@keyframes loading-shimmer {
-  0% { background-position: 100% 0; }
-  100% { background-position: 0% 0; }
+/* ── Pencil wobble (OCR in progress) ── */
+@keyframes pencil-write {
+  0%,
+  100% {
+    transform: rotate(-6deg);
+  }
+  50% {
+    transform: rotate(6deg);
+  }
+}
+.animate-pencil {
+  animation: pencil-write 0.85s ease-in-out infinite;
+  transform-origin: 50% 100%;
 }
 
+/* ── Ink-fill loading sweep ── */
+@keyframes ink-sweep {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(420%);
+  }
+}
+.animate-ink-sweep {
+  animation: ink-sweep 1.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+/* ── Shimmer text — a single ink highlight glides across the gray word.
+   Seamlessly tiled (scrolls exactly one image width per loop) so there is no
+   double band and no jump at the edges. ── */
+@keyframes loading-shimmer {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
 .animate-loading-shimmer {
   background-image: linear-gradient(
     90deg,
-    var(--color-ink-mute) 0%,
-    var(--color-ink-deep) 25%,
-    var(--color-ink-mute) 50%,
-    var(--color-ink-deep) 75%,
-    var(--color-ink-mute) 100%
+    var(--color-ash) 0%,
+    var(--color-ash) 36%,
+    var(--color-ink) 50%,
+    var(--color-ash) 64%,
+    var(--color-ash) 100%
   );
   background-size: 200% 100%;
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
-  animation: loading-shimmer 1.5s linear infinite;
+  animation: loading-shimmer 1.7s linear infinite;
 }
 
-/* ─── Count bump (member totals when assigned) ─── */
-@keyframes count-bump {
-  0% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
-  100% { transform: translateY(0); }
+/* ── Small pop (tooltips, tags) ── */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.animate-pop {
+  animation: pop-in 160ms ease both;
 }
 
-.animate-count-bump {
-  animation: count-bump 0.36s ease-out;
-}
-
-/* ─── Pencil wobble (member writing) ─── */
-@keyframes pencil-write {
-  0%, 100% { transform: rotate(-6deg) translateX(0); }
-  50% { transform: rotate(6deg) translateX(3px); }
-}
-
-.animate-pencil {
-  animation: pencil-write 0.9s ease-in-out infinite;
-  transform-origin: 50% 100%;
-}
-
-/* ─── Drag cursor ─── */
+/* ── Drag affordance ── */
 .draggable {
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
 }
-
 .draggable:active {
   cursor: grabbing;
 }
 
-/* ─── Soft underline that appears on focus/hover for editable cells ─── */
+/* ── Editable cell — underline strengthens on hover/focus ── */
 .editable-cell {
   position: relative;
 }
-
 .editable-cell input {
   background: transparent;
   outline: none;
   border: none;
 }
-
 .editable-cell::after {
   content: "";
   position: absolute;
@@ -260,14 +293,22 @@ body {
   background-repeat: no-repeat;
   background-size: 100% 100%;
   opacity: 0;
-  transition: opacity 160ms ease;
+  transition: opacity 150ms ease;
   pointer-events: none;
 }
-
 .editable-cell:hover::after {
-  opacity: 0.4;
+  opacity: 0.3;
+}
+.editable-cell:focus-within::after {
+  opacity: 0.9;
 }
 
-.editable-cell:focus-within::after {
-  opacity: 1;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

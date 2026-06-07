@@ -1,34 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createSession, loadSession, saveSession } from "@/lib/session";
 import type { ReceiptDraft } from "@/lib/receipt";
-import {
-  Sheet,
-  MosesLogo,
-  SketchButton,
-  SketchRectVisual,
-  IconUpload,
-  DoodleReceipt,
-  DoodleCoin,
-  DoodleCoinSmall,
-  DoodleCoffee,
-  DoodlePencil,
-  DoodlePiggyBank,
-  DoodleSparkle,
-  DoodleSquiggle,
-  DoodleBurst,
-} from "@/components/sketch";
+import { MosesLogo, SketchRectVisual, HintArrow, Scrawl, IconUpload } from "@/components/sketch";
 
 const SAMPLE_RECEIPTS = [
   "/samples/sample_1.webp",
   "/samples/sample_3.webp",
   "/samples/sample_4.webp",
   "/samples/sample_5.webp",
-  "/samples/sample_6.webp",
 ];
 
 const SAMPLE_DRAG_MIME = "application/x-moses-sample";
@@ -41,15 +24,9 @@ export default function UploadPage() {
   const router = useRouter();
 
   const start = () => inputRef.current?.click();
-
-  // Set to true while a pointer-drag is in progress; consumed by the click
-  // handler to suppress the click that would otherwise follow a drag-release.
   const draggedRef = useRef(false);
 
-  const beginPointerDrag = (
-    e: React.PointerEvent<HTMLButtonElement>,
-    url: string,
-  ) => {
+  const beginPointerDrag = (e: React.PointerEvent<HTMLButtonElement>, url: string) => {
     if (uploading) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     const btn = e.currentTarget;
@@ -61,11 +38,10 @@ export default function UploadPage() {
     try {
       btn.setPointerCapture(e.pointerId);
     } catch {
-      // ignore — capture is best-effort
+      // ignore
     }
 
     const hitDropZone = (x: number, y: number) => {
-      // Disable our own hit so elementFromPoint sees what's beneath the block.
       const prev = btn.style.pointerEvents;
       btn.style.pointerEvents = "none";
       const target = document.elementFromPoint(x, y) as HTMLElement | null;
@@ -84,7 +60,7 @@ export default function UploadPage() {
         btn.style.transition = "none";
         btn.style.cursor = "grabbing";
       }
-      btn.style.transform = `translate(${dx}px, ${dy}px) scale(1.05)`;
+      btn.style.transform = `translate(${dx}px, ${dy}px) rotate(-3deg) scale(1.05)`;
       setDragOver(hitDropZone(ev.clientX, ev.clientY));
     };
 
@@ -102,36 +78,23 @@ export default function UploadPage() {
         // ignore
       }
       btn.style.cursor = "";
-
-      if (!moved) {
-        // Treat as a click — onClick will fire and call loadSample.
-        return;
-      }
-
+      if (!moved) return;
       setDragOver(false);
       const dropped = hitDropZone(ev.clientX, ev.clientY);
-
       if (dropped) {
         btn.style.transform = "";
         btn.style.zIndex = "";
         btn.style.transition = "";
         void loadSample(url);
       } else {
-        // Snap back from the release point to the original slot.
         const anim = btn.animate(
           [
-            { transform: `translate(${dx}px, ${dy}px) scale(1.05)` },
-            { transform: "translate(0, 0) scale(1)" },
+            { transform: `translate(${dx}px, ${dy}px) rotate(-3deg) scale(1.05)` },
+            { transform: "translate(0, 0) rotate(0) scale(1)" },
           ],
           { duration: 320, easing: "cubic-bezier(.34, 1.56, .64, 1)" },
         );
-        // Clear inline transform synchronously so the element renders at its
-        // base position; the WAAPI animation overlays a transient transform
-        // during the 320 ms snap-back without leaving residue afterward.
         btn.style.transform = "";
-        // Disable hit-testing during the snap-back so the cursor — still
-        // parked at the release point — doesn't trigger `hover:rotate-0`
-        // and leave the block standing upright when the animation lands.
         btn.style.pointerEvents = "none";
         const restore = () => {
           btn.style.zIndex = "";
@@ -141,9 +104,6 @@ export default function UploadPage() {
         anim.onfinish = restore;
         anim.oncancel = restore;
       }
-
-      // Clear the drag flag on the next tick so the click event that some
-      // browsers synthesize after pointerup gets suppressed exactly once.
       setTimeout(() => {
         draggedRef.current = false;
       }, 0);
@@ -157,47 +117,29 @@ export default function UploadPage() {
   const loadSample = async (url: string) => {
     if (uploading) return;
     try {
-      // The dock renders a tiny 256px thumbnail (`url`), but OCR needs legible
-      // text — so upload the higher-resolution variant, fetched lazily only
-      // when a sample is actually used.
       const sourceUrl = url.replace(/\.webp$/, ".hires.webp");
       const response = await fetch(sourceUrl);
-      if (!response.ok) throw new Error("샘플 영수증을 불러오지 못했어요.");
+      if (!response.ok) throw new Error("예시 영수증을 불러오지 못했어요.");
       const blob = await response.blob();
       const name = sourceUrl.split("/").pop() ?? "sample.webp";
-      const file = new File([blob], name, {
-        type: blob.type || "image/webp",
-      });
+      const file = new File([blob], name, { type: blob.type || "image/webp" });
       await extractReceipt(file);
     } catch {
-      setError("샘플 영수증을 불러오지 못했어요.");
+      setError("예시 영수증을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
     }
   };
 
   const extractReceipt = async (file: File) => {
     setError(null);
     setUploading(true);
-    const session = saveSession({
-      ...createSession(),
-      status: "extracting",
-      uploadFileName: file.name,
-    });
+    const session = saveSession({ ...createSession(), status: "extracting", uploadFileName: file.name });
     router.push("/members");
-
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const response = await fetch("/api/receipts/extract", {
-        method: "POST",
-        body: formData,
-      });
-      const payload = (await response.json()) as {
-        draft?: ReceiptDraft;
-        error?: string;
-      };
-      if (!response.ok || !payload.draft) {
-        throw new Error(payload.error ?? "영수증 분석에 실패했어요.");
-      }
+      const response = await fetch("/api/receipts/extract", { method: "POST", body: formData });
+      const payload = (await response.json()) as { draft?: ReceiptDraft; error?: string };
+      if (!response.ok || !payload.draft) throw new Error(payload.error ?? "영수증을 읽지 못했어요.");
       saveSession({
         ...(loadSession() ?? session),
         status: "needs_review",
@@ -206,13 +148,8 @@ export default function UploadPage() {
         assignments: [],
       });
     } catch (reason) {
-      const message =
-        reason instanceof Error ? reason.message : "영수증 분석에 실패했어요.";
-      saveSession({
-        ...(loadSession() ?? session),
-        status: "extraction_failed",
-        errorMessage: message,
-      });
+      const message = reason instanceof Error ? reason.message : "영수증을 읽지 못했어요.";
+      saveSession({ ...(loadSession() ?? session), status: "extraction_failed", errorMessage: message });
       setError(message);
     } finally {
       setUploading(false);
@@ -221,184 +158,105 @@ export default function UploadPage() {
   };
 
   return (
-    <div className="relative">
-      <Sheet>
-        {/* Doodles arranged around the Sheet's inside edges — they overlap
-            the corner area without ever falling outside the viewport. */}
-        <DoodleReceipt
-          className="pointer-events-none absolute left-3 top-3 hidden h-[80px] w-[54px] sm:left-5 sm:top-5 sm:block"
-          style={{ transform: "rotate(-12deg)" }}
-          tone="ink"
-        />
-        <DoodleCoinSmall
-          className="pointer-events-none absolute left-[78px] top-2 hidden h-[28px] w-[28px] sm:left-[92px] sm:top-3 sm:block"
-          style={{ transform: "rotate(8deg)" }}
-          tone="ink"
-        />
-        <DoodleSparkle
-          className="pointer-events-none absolute left-[122px] top-[58px] hidden h-[14px] w-[14px] sm:left-[140px] sm:block"
-          tone="soft"
-        />
+    <div className="fade-in relative mx-auto w-full max-w-[460px]">
+      {/* logo + one line */}
+      <div className="mb-12 text-center">
+        <MosesLogo size="xl" />
+        <p className="font-hand mt-6 text-[1.25rem] text-[var(--color-graphite)]">
+          영수증 한 장이면, 정산 끝.
+        </p>
+      </div>
 
-        <DoodlePencil
-          className="pointer-events-none absolute right-2 top-4 hidden h-[28px] w-[100px] sm:right-4 sm:top-6 sm:block"
-          style={{ transform: "rotate(14deg)" }}
-          tone="ink"
-        />
-        <DoodleSquiggle
-          className="pointer-events-none absolute right-[112px] top-[60px] hidden h-[12px] w-[54px] sm:right-[120px] sm:block"
-          style={{ transform: "rotate(-6deg)" }}
-          tone="muted"
-        />
+      {/* the one good guide note — kept */}
+      <div className="pointer-events-none absolute -left-[188px] top-[180px] hidden w-[168px] xl:block">
+        <Scrawl rotate={-5} className="block text-[1.1rem]">
+          끌어다 놓아도 되고,
+          <br />
+          그냥 눌러도 돼요
+        </Scrawl>
+        <HintArrow className="mt-1 ml-20" width={92} height={62} tone="muted" style={{ transform: "rotate(8deg)" }} />
+      </div>
 
-        <DoodleCoffee
-          className="pointer-events-none absolute left-2 top-[44%] hidden h-[78px] w-[68px] sm:left-3 sm:block"
-          style={{ transform: "rotate(-8deg)" }}
-          tone="ink"
-        />
-
-        <DoodlePiggyBank
-          className="pointer-events-none absolute right-2 top-[46%] hidden h-[68px] w-[86px] sm:right-3 sm:block"
-          style={{ transform: "rotate(6deg)" }}
-          tone="ink"
-        />
-        <DoodleBurst
-          className="pointer-events-none absolute right-[100px] top-[42%] hidden h-[18px] w-[18px] sm:right-[110px] sm:block"
-          tone="soft"
-        />
-
-        <DoodleCoin
-          className="pointer-events-none absolute bottom-4 left-4 hidden h-[40px] w-[40px] sm:bottom-6 sm:left-6 sm:block"
-          style={{ transform: "rotate(8deg)" }}
-          tone="ink"
-        />
-        <DoodleSparkle
-          className="pointer-events-none absolute bottom-[60px] left-[64px] hidden h-[12px] w-[12px] sm:bottom-[70px] sm:left-[80px] sm:block"
-          tone="muted"
-        />
-        <DoodleSparkle
-          className="pointer-events-none absolute bottom-[84px] right-[120px] hidden h-[12px] w-[12px] sm:block"
-          tone="soft"
-        />
-
-        {/* ─── Logo + tagline ─── */}
-        <div className="relative z-10 mb-8 text-center sm:mb-10">
-          <MosesLogo size="xl" />
-          <p className="font-hand mt-4 text-xl text-[var(--color-ink-soft)] sm:text-2xl">
-            영수증 하나로 정산 끝
-          </p>
-        </div>
-
-        {/* ─── Upload zone ─── */}
-        <div
-          data-drop-zone="receipts"
-          className="relative z-10 mx-auto mt-6 mb-2 max-w-[460px]"
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragOver(true);
-          }}
-          onDragLeave={(e) => {
-            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-              setDragOver(false);
-            }
-          }}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragOver(false);
-            const sampleUrl = e.dataTransfer.getData(SAMPLE_DRAG_MIME);
-            if (sampleUrl) {
-              void loadSample(sampleUrl);
-              return;
-            }
-            const file = e.dataTransfer.files.item(0);
+      {/* drop zone */}
+      <div
+        data-drop-zone="receipts"
+        className="relative"
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(false);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          const sampleUrl = e.dataTransfer.getData(SAMPLE_DRAG_MIME);
+          if (sampleUrl) {
+            void loadSample(sampleUrl);
+            return;
+          }
+          const file = e.dataTransfer.files.item(0);
+          if (file) void extractReceipt(file);
+        }}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          className="sr-only"
+          onChange={(e) => {
+            const file = e.currentTarget.files?.item(0);
             if (file) void extractReceipt(file);
           }}
+        />
+        <button
+          type="button"
+          onClick={start}
+          disabled={uploading}
+          className="group relative block w-full disabled:cursor-not-allowed"
+          aria-label="영수증 사진 올리기"
         >
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            className="sr-only"
-            onChange={(e) => {
-              const file = e.currentTarget.files?.item(0);
-              if (file) void extractReceipt(file);
-            }}
+          <SketchRectVisual
+            radius={18}
+            fill="#f5f5f5"
+            stroke={dragOver ? "ink" : "muted"}
+            shadow={dragOver ? "drop" : "none"}
+            wobble={0.4}
+            strokeWidth={dragOver ? 2.6 : 2.2}
+            seed={19}
+            dashed
           />
-          {/* Resting state — barely-there fill, no border. Fades out on drag. */}
-          <div
-            className={`pointer-events-none absolute inset-0 transition-opacity duration-200 ${
-              dragOver ? "opacity-0" : "opacity-100"
-            }`}
-            aria-hidden
-          >
-            <SketchRectVisual
-              radius={20}
-              fill="#fafafa"
-              hideStroke
-              shadow="none"
-            />
-          </div>
-          {/* Drag-over state — dashed crayon border + light tint. */}
-          <div
-            className={`pointer-events-none absolute inset-0 transition-opacity duration-200 ${
-              dragOver ? "opacity-100" : "opacity-0"
-            }`}
-            aria-hidden
-          >
-            <SketchRectVisual
-              radius={20}
-              fill="#f1f1f1"
-              stroke="ink"
-              shadow="soft"
-              wobble={0.65}
-              strokeWidth={2.6}
-              seed={19}
-              dashed
-            />
-          </div>
-
-          <div className="relative flex h-60 flex-col items-center justify-center gap-3 px-4 sm:h-64">
+          <div className="relative flex h-64 flex-col items-center justify-center gap-3 px-6">
             <IconUpload
-              className={`h-16 w-16 text-[var(--color-ink)] sm:h-20 sm:w-20 ${dragOver ? "animate-nudge" : ""}`}
-              strokeWidth={2.4}
+              className={`h-14 w-14 text-[var(--color-ink)] transition-transform ${
+                dragOver ? "animate-nudge" : "group-hover:-translate-y-1"
+              }`}
+              strokeWidth={2.3}
             />
-            <p className="font-hand text-center text-xl text-[var(--color-ink-soft)] sm:text-2xl">
-              {uploading
-                ? "영수증 분석 중..."
-                : dragOver
-                  ? "놓으면 바로 시작!"
-                  : "여기에 영수증을 올려주세요"}
+            <p className="font-hand text-center text-[1.35rem] text-[var(--color-ink)]">
+              {uploading ? "영수증을 읽고 있어요…" : dragOver ? "그대로 놓으면 시작!" : "여기에 영수증을 올려 주세요"}
             </p>
-            <SketchButton
-              variant="secondary"
-              size="sm"
-              onClick={start}
-              disabled={uploading}
-              className="mt-1"
-            >
-              {uploading ? "분석 중..." : "파일 선택"}
-            </SketchButton>
+            {!uploading && (
+              <span className="relative mt-1 inline-flex min-h-[42px] items-center justify-center px-5 font-hand text-[1.05rem] text-[var(--color-paper)] transition-transform group-hover:-translate-y-[1.5px]">
+                <SketchRectVisual radius={18} fill="#262626" stroke="ink" shadow="drop" wobble={0.3} strokeWidth={2.3} seed={5} />
+                <span className="relative">사진 고르기</span>
+              </span>
+            )}
           </div>
-        </div>
+        </button>
+      </div>
 
-        {error && (
-          <p className="relative z-10 mx-auto mt-4 max-w-[460px] text-center font-hand text-base text-[var(--color-ink)]">
-            {error}
-          </p>
-        )}
-        <p className="relative z-10 mt-5 text-center font-hand text-base text-[var(--color-ink-mute)]">
-          첨부할 수 있는 확장자: JPG, PNG, WEBP, GIF
-        </p>
-      </Sheet>
+      {error && <p className="font-hand mt-4 text-center text-[1.02rem] text-[var(--color-ink)]">{error}</p>}
 
-      {/* ─── Sample receipt dock ─── */}
-      <div className="mt-6 sm:mt-8">
-        <p className="font-hand text-center text-base text-[var(--color-ink-soft)] sm:text-lg">
-          예시 영수증을 끌어다 위 박스에 놓아보세요
+      {/* example receipts — a quiet secondary path */}
+      <div className="mt-10">
+        <p className="font-hand mb-4 text-center text-[1.02rem] text-[var(--color-graphite)]">
+          영수증이 없다면, 아래 예시로 먼저 해보세요.
         </p>
-        <div className="mt-3 flex flex-wrap items-end justify-center gap-3 sm:gap-4">
+        <div className="flex items-end justify-center gap-3">
           {SAMPLE_RECEIPTS.map((url, i) => {
-            const rotations = ["-rotate-3", "rotate-2", "-rotate-1", "rotate-3", "-rotate-2", "rotate-1"];
+            const rot = [-4, 3, -2, 4][i % 4];
             return (
               <button
                 key={url}
@@ -409,26 +267,19 @@ export default function UploadPage() {
                   void loadSample(url);
                 }}
                 disabled={uploading}
-                aria-label={`샘플 영수증 ${i + 1} 사용`}
-                title={`샘플 영수증 ${i + 1}`}
-                className={`relative block h-[112px] w-[80px] shrink-0 touch-none cursor-grab transition-transform duration-150 hover:-translate-y-1.5 hover:rotate-0 active:translate-y-0 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50 sm:h-[124px] sm:w-[88px] ${rotations[i % rotations.length]}`}
+                aria-label={`예시 영수증 ${i + 1}`}
+                title={`예시 영수증 ${i + 1}`}
+                className="relative block h-[108px] w-[76px] shrink-0 touch-none cursor-grab transition-transform duration-150 hover:-translate-y-2 hover:rotate-0 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
+                style={{ transform: `rotate(${rot}deg)` }}
               >
-                <SketchRectVisual
-                  radius={10}
-                  fill="#ffffff"
-                  stroke="ink"
-                  shadow="drop"
-                  strokeWidth={2.2}
-                  wobble={0.55}
-                  seed={9 + i}
-                />
+                <SketchRectVisual radius={8} fill="#f5f5f5" stroke="soft" shadow="soft" strokeWidth={2} wobble={0.35} seed={9 + i} />
                 <Image
                   src={url}
                   alt=""
-                  width={88}
-                  height={124}
+                  width={76}
+                  height={108}
                   draggable={false}
-                  className="pointer-events-none absolute inset-[6px] h-[calc(100%-12px)] w-[calc(100%-12px)] rounded-[6px] object-cover select-none"
+                  className="pointer-events-none absolute inset-[5px] h-[calc(100%-10px)] w-[calc(100%-10px)] rounded-[5px] object-cover select-none"
                   unoptimized
                 />
               </button>

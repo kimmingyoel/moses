@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "모세",
-  description: "영수증 하나로 정산 끝. 모세 — 영수증 기반 더치페이 서비스.",
+  description: "영수증 한 장이면 정산 끝. 모세 — 영수증 기반 더치페이.",
 };
 
 export default function RootLayout({
@@ -13,11 +13,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className="flex min-h-screen flex-col">
-        {/* `flex-1 + justify-center` keeps short pages (upload, members) in
-         * the viewport's vertical center while still letting taller pages
-         * (review, assign, result) scroll naturally from the top. */}
-        <main className="mx-auto flex w-full max-w-[760px] flex-1 flex-col justify-center px-4 py-8 sm:py-12">
+      <body className="min-h-screen">
+        {/* A calm centered column with open margins on either side, where a
+         * single handwritten guide note can sit when one is genuinely useful. */}
+        <main className="mx-auto w-full max-w-[860px] px-6 py-16 sm:py-24">
           {children}
         </main>
       </body>

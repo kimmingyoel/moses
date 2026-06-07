@@ -3,12 +3,13 @@ export {
   SketchFrame,
   SketchButton,
   SketchInput,
-  SketchCheckbox,
   SketchUnderline,
-  SketchCircleVisual,
-  StepIndicator,
+  PAPER,
+  INK,
 } from "./Sketch";
-export { Sheet } from "./Sheet";
+export { WavyDivider } from "./Lines";
+export { Tooltip, SpeechBubble, InfoNote } from "./Tooltip";
+export { HintArrow, Scrawl } from "./Annotation";
 export { MosesLogo } from "./Logo";
 export { Avatar } from "./Avatar";
 export {
@@ -19,19 +20,11 @@ export {
   IconChevron,
   IconPencil,
   IconUpload,
-  IconSparkle,
   IconUndo,
   IconRedo,
   IconAlert,
+  IconCopy,
+  IconTrash,
+  IconUsers,
+  IconShuffle,
 } from "./Icons";
-export {
-  DoodleReceipt,
-  DoodleCoin,
-  DoodleCoinSmall,
-  DoodleCoffee,
-  DoodlePencil,
-  DoodlePiggyBank,
-  DoodleSparkle,
-  DoodleSquiggle,
-  DoodleBurst,
-} from "./Doodles";
