@@ -135,12 +135,12 @@ export default function ReviewPage() {
       </p>
 
       {!hasReceipt && (
-        <InfoNote glyph="!" className="mt-6">
+        <InfoNote className="mt-6">
           아직 읽은 영수증이 없어요. 처음 화면에서 영수증을 먼저 올려 주세요.
         </InfoNote>
       )}
       {hasInvalid && (
-        <InfoNote glyph="!" className="mt-6">
+        <InfoNote className="mt-6">
           비어 있거나 0인 칸이 있어요. 채워야 다음으로 넘어갈 수 있어요.
         </InfoNote>
       )}

@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { SketchFrame, SketchRectVisual, INK, PAPER } from "./Sketch";
+import { IconAlert } from "./Icons";
 
 type Side = "top" | "bottom" | "left" | "right";
 
@@ -145,14 +146,12 @@ export function Tooltip({
 /* ── Info callout — a bordered note for guidance / empty states ── */
 export function InfoNote({
   children,
-  glyph = "i",
   dashed = true,
   tone = "ink",
   className = "",
   contentClassName = "",
 }: {
   children: ReactNode;
-  glyph?: string;
   dashed?: boolean;
   tone?: "ink" | "soft" | "muted";
   className?: string;
@@ -170,7 +169,7 @@ export function InfoNote({
       className={className}
       contentClassName={`flex items-start gap-3 px-4 py-3.5 ${contentClassName}`}
     >
-      <InfoBadge glyph={glyph} size={24} className="mt-0.5" />
+      <IconAlert className="mt-0.5 h-[22px] w-[22px] shrink-0 text-[var(--color-ink)]" />
       <div className="min-w-0 font-hand text-[1.02rem] leading-snug text-[var(--color-ink)]">
         {children}
       </div>

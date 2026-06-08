@@ -264,9 +264,9 @@ export default function AssignPage() {
       {/* margin guide — multi-select discoverability (the kept pattern) */}
       <div className="pointer-events-none absolute -left-[196px] top-[96px] hidden w-[176px] xl:block">
         <Scrawl rotate={-4} className="block text-[1.05rem]">
-          여러 명을 먼저 누르면
+          두 명 이상을 선택하면
           <br />
-          함께 똑같이 나눠 내요
+          동등하게 분배할 수 있어요
         </Scrawl>
         <HintArrow className="mt-1 ml-24" width={80} height={54} tone="muted" style={{ transform: "rotate(14deg)" }} />
       </div>
@@ -287,7 +287,8 @@ export default function AssignPage() {
         </div>
       </div>
       <p className="font-hand mt-2 text-[1.05rem] text-[var(--color-graphite)]">
-        항목을 사람 위로 끌어다 놓아요.
+        구성원에게 항목을 분배하세요.<br />
+        항목을 선택한 후, 드래그해서 구성원 위에 놓으면 분배할 수 있어요.
       </p>
 
       {/* people roster — plain avatars, no cards */}
@@ -355,7 +356,7 @@ export default function AssignPage() {
             <div className="mb-1 flex items-center justify-between">
               <span className="font-hand text-[1.05rem] text-[var(--color-ink)]">남은 항목</span>
               {selected.size === 0 && (
-                <span className="font-hand text-[0.92rem] text-[var(--color-ash)]">끌어다 놓거나, 사람 고른 뒤 톡 누르기</span>
+                <span className="font-hand text-[0.92rem] text-[var(--color-ash)]">끌어다 놓거나, 사람 고른 뒤 누르기</span>
               )}
             </div>
             <ul>
