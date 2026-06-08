@@ -11,10 +11,13 @@ import {
 import { loadSession, saveSession } from "@/lib/session";
 import {
   SketchFrame,
+  SketchRectVisual,
   SketchButton,
   SketchInput,
   WavyDivider,
   Avatar,
+  Scrawl,
+  HintArrow,
   IconClose,
   IconCheck,
   IconPencil,
@@ -84,12 +87,24 @@ export default function MembersPage() {
       ? "영수증을 다 읽으면 넘어갈 수 있어요."
       : "영수증 분석을 기다리고 있어요."
     : !enoughMembers
-      ? "한 명 더 적어 주세요. (최소 2명)"
+      ? "최소 두 명 이상 추가해 주세요"
       : null;
 
   return (
-    <div className="fade-in mx-auto w-full max-w-[460px]">
-      <h1 className="font-hand text-[2rem] leading-tight text-[var(--color-ink)]">누구랑 나눠 낼까요?</h1>
+    <div className="fade-in relative mx-auto w-full max-w-[460px]">
+      {/* margin guide — comma-separated names (the kept pattern) */}
+      <div className="pointer-events-none absolute -left-[214px] top-[159px] hidden w-[200px] xl:block">
+        <HintArrow className="mb-1.5 ml-28" width={92} height={56} tone="muted" style={{ transform: "rotate(-16deg) scaleY(-1)" }} />
+        <Scrawl rotate={-4} className="block text-[1rem] leading-snug">
+          쉼표로 분리된 이름 목록을
+          <br />
+          입력하면 한 번에
+          <br />
+          여러 명을 추가할 수 있어요
+        </Scrawl>
+      </div>
+
+      <h1 className="font-hand text-[2rem] leading-tight text-[var(--color-ink)]">누구와 나눠 낼까요?</h1>
 
       {/* analysis status */}
       <div className="mt-4 flex items-center gap-2.5">
@@ -142,7 +157,7 @@ export default function MembersPage() {
               e.preventDefault();
               addMember(e.currentTarget.value);
             }}
-            placeholder="이름 입력 (쉼표로 여러 명)"
+            placeholder="이름을 입력하세요"
             maxLength={MAX_MEMBER_INPUT_LENGTH}
             className="min-w-0 flex-1"
           />
@@ -153,27 +168,58 @@ export default function MembersPage() {
 
         <WavyDivider tone="muted" className="my-4" />
 
-        <ul className="flex flex-col">
-          {members.map((m, i) => (
-            <li
-              key={m.id}
-              className={`flex items-center gap-3 py-2.5 ${
-                i > 0 ? "border-t border-dashed border-[var(--color-ash)]/40" : ""
-              }`}
-            >
-              <Avatar name={m.name} size={32} />
-              <span className="font-hand flex-1 text-[1.1rem] text-[var(--color-ink)]">{m.name}</span>
-              <button
-                type="button"
-                onClick={() => removeMember(m.id)}
-                aria-label={`${m.name} 빼기`}
-                className="grid h-6 w-6 place-items-center rounded-full text-[var(--color-ash)] transition-colors hover:text-[var(--color-ink)]"
+        {members.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 py-6 text-center">
+            <span className="flex items-center">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="relative grid h-11 w-11 place-items-center"
+                  style={{ marginLeft: i === 0 ? 0 : -10 }}
+                >
+                  <SketchRectVisual
+                    radius={9999}
+                    fill="#f5f5f5"
+                    stroke="muted"
+                    dashed
+                    strokeWidth={2}
+                    wobble={0.6}
+                    seed={12 + i * 7}
+                  />
+                  <span className="relative font-hand text-[1.15rem] text-[var(--color-ash)]">?</span>
+                </span>
+              ))}
+            </span>
+            <div>
+              <p className="font-hand text-[1.1rem] text-[var(--color-ink)]">아직 함께할 사람이 없어요</p>
+              <p className="font-hand mt-0.5 text-[0.98rem] text-[var(--color-ash)]">
+                위에 이름을 적어 구성원을 추가하세요
+              </p>
+            </div>
+          </div>
+        ) : (
+          <ul className="flex flex-col">
+            {members.map((m, i) => (
+              <li
+                key={m.id}
+                className={`flex items-center gap-3 py-2.5 ${
+                  i > 0 ? "border-t border-dashed border-[var(--color-ash)]/40" : ""
+                }`}
               >
-                <IconClose className="h-4 w-4" />
-              </button>
-            </li>
-          ))}
-        </ul>
+                <Avatar name={m.name} size={32} />
+                <span className="font-hand flex-1 text-[1.1rem] text-[var(--color-ink)]">{m.name}</span>
+                <button
+                  type="button"
+                  onClick={() => removeMember(m.id)}
+                  aria-label={`${m.name} 빼기`}
+                  className="grid h-6 w-6 place-items-center rounded-full text-[var(--color-ash)] transition-colors hover:text-[var(--color-ink)]"
+                >
+                  <IconClose className="h-4 w-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </SketchFrame>
 
       {/* nav */}
@@ -188,7 +234,7 @@ export default function MembersPage() {
         <div className="flex items-center gap-4">
           {blockReason && <span className="font-hand text-[0.98rem] text-[var(--color-ash)]">{blockReason}</span>}
           <SketchButton onClick={() => router.push("/review")} disabled={!canProceed}>
-            항목 확인
+            다음
           </SketchButton>
         </div>
       </div>
