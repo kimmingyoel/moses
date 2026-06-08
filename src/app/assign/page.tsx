@@ -554,7 +554,7 @@ function Roster({
             {isSelected && (
               <span className="absolute -right-2 -top-2 z-10 grid h-5 w-5 place-items-center">
                 <SketchRectVisual radius={999} fill="#262626" stroke="ink" wobble={0.3} strokeWidth={2} />
-                <IconCheck className="relative h-3 w-3 text-[var(--color-paper)]" />
+                <IconCheck className="relative h-3 w-3 text-[var(--color-paper)]" style={{ "--icon-erase": "#262626" } as CSSProperties} />
               </span>
             )}
             {showPreview && <PreviewPopover items={breakdown(m.id)} total={memberTotal(m.id)} />}
