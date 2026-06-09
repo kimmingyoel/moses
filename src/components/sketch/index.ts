@@ -4,10 +4,22 @@ export {
   SketchButton,
   SketchInput,
   SketchUnderline,
+  WHITE,
   PAPER,
   INK,
 } from "./Sketch";
 export { WavyDivider } from "./Lines";
+export {
+  DoodleReceipt,
+  DoodleCoin,
+  DoodleCoinSmall,
+  DoodleCoffee,
+  DoodlePencil,
+  DoodlePiggyBank,
+  DoodleSparkle,
+  DoodleSquiggle,
+  DoodleBurst,
+} from "./Doodles";
 export { Tooltip, SpeechBubble, InfoNote } from "./Tooltip";
 export { HintArrow, Scrawl } from "./Annotation";
 export { MosesLogo } from "./Logo";

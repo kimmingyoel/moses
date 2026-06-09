@@ -23,7 +23,7 @@ export function Avatar({
   size?: number;
   tone?: Tone;
 }) {
-  const stroke = tone === "ink" ? "#262626" : "#666666";
+  const stroke = tone === "ink" ? "var(--color-ink)" : "var(--color-graphite)";
 
   const { path, initial } = useMemo(() => {
     const seed = hash(name);
@@ -47,7 +47,7 @@ export function Avatar({
 
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden>
-      <path d={path} stroke={stroke} strokeWidth={2.2} fill="#f5f5f5" strokeLinejoin="round" />
+      <path d={path} stroke={stroke} strokeWidth={2.2} fill="var(--color-paper)" strokeLinejoin="round" />
       <text
         x="24"
         y="30"

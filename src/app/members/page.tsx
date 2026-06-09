@@ -116,7 +116,7 @@ export default function MembersPage() {
         ) : hasReceipt ? (
           <>
             <IconCheck className="h-5 w-5 shrink-0 text-[var(--color-ink)]" />
-            <span className="font-hand text-[1.02rem] text-[var(--color-graphite)]">영수증을 다 읽었어요</span>
+            <span className="font-hand text-[1.02rem] text-[var(--color-ink)]">영수증을 다 읽었어요</span>
           </>
         ) : (
           <>
@@ -129,7 +129,7 @@ export default function MembersPage() {
       {/* members card — add + roster grouped together */}
       <SketchFrame
         radius={20}
-        fill="#f5f5f5"
+        fill="var(--color-paper)"
         stroke="ink"
         shadow="soft"
         wobble={0.5}
@@ -179,7 +179,7 @@ export default function MembersPage() {
                 >
                   <SketchRectVisual
                     radius={9999}
-                    fill="#f5f5f5"
+                    fill="var(--color-paper)"
                     stroke="muted"
                     dashed
                     strokeWidth={2}

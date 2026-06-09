@@ -104,7 +104,7 @@ export default function ResultPage() {
 
       <SketchFrame
         radius={20}
-        fill="#f5f5f5"
+        fill="var(--color-paper)"
         stroke="ink"
         shadow="soft"
         wobble={0.5}

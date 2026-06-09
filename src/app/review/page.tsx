@@ -13,6 +13,7 @@ import {
   SketchButton,
   WavyDivider,
   InfoNote,
+  DoodleReceipt,
   IconClose,
   IconPlus,
   IconAlert,
@@ -141,13 +142,13 @@ export default function ReviewPage() {
       )}
       {hasInvalid && (
         <InfoNote className="mt-6">
-          비어 있거나 0인 칸이 있어요. 채워야 다음으로 넘어갈 수 있어요.
+          비어 있거나 값이 0인 항목이 있어요.
         </InfoNote>
       )}
 
       <SketchFrame
         radius={20}
-        fill="#f5f5f5"
+        fill="var(--color-paper)"
         stroke="ink"
         shadow="soft"
         wobble={0.5}
@@ -167,6 +168,14 @@ export default function ReviewPage() {
           ))}
         </ul>
 
+        {items.length === 0 && (
+          <div className="flex flex-col items-center gap-2 py-7 text-center">
+            <DoodleReceipt tone="muted" className="h-16 w-auto" />
+            <p className="font-hand text-[1.05rem] text-[var(--color-graphite)]">아직 담긴 항목이 없어요</p>
+            <p className="font-note text-[0.92rem] text-[var(--color-ash)]">아래에서 항목을 더해 주세요</p>
+          </div>
+        )}
+
         <button
           ref={addButtonRef}
           type="button"
@@ -174,7 +183,7 @@ export default function ReviewPage() {
           className="group mt-3 inline-flex items-center gap-2 text-[var(--color-graphite)] transition-colors hover:text-[var(--color-ink)]"
         >
           <IconPlus className="h-4 w-4" />
-          <span className="font-hand text-[1.02rem]">항목 더하기</span>
+          <span className="font-hand text-[1.02rem]">항목 추가</span>
         </button>
 
         <div className="mt-5">
@@ -209,7 +218,7 @@ export default function ReviewPage() {
           <IconArrowLeft className="h-4 w-4" /> 이전
         </button>
         <SketchButton onClick={confirmReceipt} disabled={!canConfirm}>
-          나누러 가기
+          다음
         </SketchButton>
       </div>
     </div>

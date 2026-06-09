@@ -17,19 +17,21 @@ import {
 } from "./handDrawn";
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/*  Palette — only the four grays from design_assets/color palette.svg.        */
-/*  Surfaces are paper (#f5f5f5); the only "fill" beyond paper is ink.         */
+/*  Palette handles — every color resolves to a token from the canonical       */
+/*  palette in globals.css (design_assets/color palette.svg). Never hard-code   */
+/*  a hex here; add/adjust the level there instead.                            */
 /* ────────────────────────────────────────────────────────────────────────── */
 
-export const PAPER = "#f5f5f5";
-export const INK = "#262626";
+export const WHITE = "var(--color-white)"; /* 100 */
+export const PAPER = "var(--color-paper)"; /* 300 */
+export const INK = "var(--color-ink)"; /* 900 */
 
 type Tone = "ink" | "soft" | "muted";
 
 const STROKE: Record<Tone, string> = {
-  ink: "#262626",
-  soft: "#666666",
-  muted: "#9e9e9e",
+  ink: "var(--color-ink)" /* 900 */,
+  soft: "var(--color-graphite)" /* 700 */,
+  muted: "var(--color-ash)" /* 500 */,
 };
 
 /* ────────────────────────────────────────────────────────────────────────── */
@@ -308,15 +310,24 @@ export function SketchButton({
   const isPrimary = variant === "primary";
   const isGhost = variant === "ghost";
 
-  // Disabled buttons follow design_assets/button (Style=Disabled): a solid
-  // graphite fill + graphite outline, no lift.
-  const GRAPHITE = "#666666";
-  const fill = disabled ? GRAPHITE : isPrimary ? INK : isGhost ? "transparent" : PAPER;
+  // Color per state, following design_assets/button:
+  //   Primary   — 900 surface, 100 text, lifted.
+  //   Secondary — 100 surface, 900 border, 900 text, lifted.
+  //   Ghost     — no surface, no border, 900 text.
+  //   Disabled  — graphite surface + border faded to ~1/6 (reads as ~300),
+  //               700 text, flat (no lift).
+  const fill = disabled
+    ? "var(--color-graphite)"
+    : isPrimary
+      ? INK
+      : isGhost
+        ? "transparent"
+        : WHITE;
 
   const textCls = disabled
-    ? "text-[var(--color-paper)]"
+    ? "text-[var(--color-graphite)]"
     : isPrimary
-      ? "text-[var(--color-paper)]"
+      ? "text-[var(--color-white)]"
       : "text-[var(--color-ink)]";
 
   return (
@@ -336,7 +347,9 @@ export function SketchButton({
         radius={radius}
         fill={fill}
         stroke={disabled ? "soft" : "ink"}
+        hideStroke={isGhost}
         shadow={isGhost || disabled ? "none" : "drop"}
+        className={disabled ? "opacity-[0.1667]" : ""}
         wobble={0.48}
         strokeWidth={2.4}
         scribble={scribble && !disabled}
@@ -429,7 +442,7 @@ export function SketchCheckbox({
       <span className="relative mt-0.5 inline-block h-[24px] w-[24px] shrink-0">
         <SketchRectVisual
           radius={5}
-          fill={checked ? INK : PAPER}
+          fill={checked ? INK : WHITE}
           stroke="ink"
           shadow={checked ? "drop" : "soft"}
           wobble={0.45}
@@ -440,7 +453,7 @@ export function SketchCheckbox({
           <svg aria-hidden viewBox="0 0 24 24" className="absolute inset-0 h-full w-full">
             <path
               d="M5 12 Q 8 15, 10 17 Q 13 11, 18 6"
-              stroke={PAPER}
+              stroke={WHITE}
               strokeWidth="2.6"
               fill="none"
               strokeLinecap="round"

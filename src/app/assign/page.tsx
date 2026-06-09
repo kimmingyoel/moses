@@ -339,7 +339,7 @@ export default function AssignPage() {
       {/* remaining items */}
       <SketchFrame
         radius={20}
-        fill="#f5f5f5"
+        fill="var(--color-paper)"
         stroke="ink"
         shadow="soft"
         wobble={0.5}
@@ -399,15 +399,17 @@ export default function AssignPage() {
   );
 }
 
+/* Secondary icon button (design_assets/button Style=Secondary): 100 surface,
+   900 border + icon, lifted. */
 function IconBtn({ children, onClick, label }: { children: React.ReactNode; onClick: () => void; label: string }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="relative grid h-8 w-8 place-items-center text-[var(--color-ink)] transition-transform hover:-translate-y-[1px]"
+      className="relative grid h-8 w-8 place-items-center text-[var(--color-ink)] transition-transform hover:-translate-y-[1.5px] active:translate-y-[1px]"
     >
-      <SketchRectVisual radius={9} fill="#f5f5f5" stroke="soft" shadow="none" wobble={0.3} strokeWidth={2} />
+      <SketchRectVisual radius={9} fill="var(--color-white)" stroke="ink" shadow="drop" wobble={0.3} strokeWidth={2} />
       <span className="relative">{children}</span>
     </button>
   );
@@ -478,7 +480,7 @@ function Roster({
   return (
     <SketchFrame
       radius={20}
-      fill="#f5f5f5"
+      fill="var(--color-paper)"
       stroke="ink"
       shadow="soft"
       wobble={0.5}
@@ -535,7 +537,7 @@ function Roster({
               <span className="absolute inset-0">
                 <SketchRectVisual
                   radius={16}
-                  fill="#f5f5f5"
+                  fill="var(--color-paper)"
                   stroke="ink"
                   shadow={isDrop ? "drop" : "soft"}
                   wobble={0.4}
@@ -553,8 +555,8 @@ function Roster({
             </span>
             {isSelected && (
               <span className="absolute -right-2 -top-2 z-10 grid h-5 w-5 place-items-center">
-                <SketchRectVisual radius={999} fill="#262626" stroke="ink" wobble={0.3} strokeWidth={2} />
-                <IconCheck className="relative h-3 w-3 text-[var(--color-paper)]" style={{ "--icon-erase": "#262626" } as CSSProperties} />
+                <SketchRectVisual radius={999} fill="var(--color-ink)" stroke="ink" wobble={0.3} strokeWidth={2} />
+                <IconCheck className="relative h-3 w-3 text-[var(--color-white)]" />
               </span>
             )}
             {showPreview && <PreviewPopover items={breakdown(m.id)} total={memberTotal(m.id)} />}
@@ -575,7 +577,7 @@ function PreviewPopover({
   return (
     <span className="animate-pop pointer-events-none absolute left-1/2 top-full z-30 mt-2 w-[200px] -translate-x-1/2">
       <span className="relative block">
-        <SketchRectVisual radius={14} fill="#f5f5f5" stroke="ink" shadow="drop" wobble={0.3} strokeWidth={2.2} />
+        <SketchRectVisual radius={14} fill="var(--color-paper)" stroke="ink" shadow="drop" wobble={0.3} strokeWidth={2.2} />
         <span className="relative block px-3 py-2.5 text-left">
           {items.length === 0 ? (
             <span className="font-hand block text-[0.95rem] text-[var(--color-graphite)]">아직 담은 게 없어요</span>
@@ -711,7 +713,7 @@ function ItemListRow({
           className="pointer-events-none fixed z-[60] inline-flex items-center gap-2 whitespace-nowrap px-3.5 py-2"
           style={{ left: ghost.x, top: ghost.y, transform: "translate(-50%, -50%) rotate(-2deg)" }}
         >
-          <SketchRectVisual radius={12} fill="#f5f5f5" stroke="ink" shadow="drop" wobble={0.3} strokeWidth={2.2} />
+          <SketchRectVisual radius={12} fill="var(--color-paper)" stroke="ink" shadow="drop" wobble={0.3} strokeWidth={2.2} />
           <span className="font-hand relative whitespace-nowrap text-[1rem] text-[var(--color-ink)]">{item.name}</span>
           <span className="font-data money-text relative whitespace-nowrap text-[0.9rem] text-[var(--color-graphite)]">{fmt(item.unitPrice)}원</span>
         </span>

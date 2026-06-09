@@ -5,9 +5,9 @@ import { buildWavyLine, buildDoubleWavyLine } from "./handDrawn";
 
 type Tone = "ink" | "soft" | "muted";
 const STROKE: Record<Tone, string> = {
-  ink: "#262626",
-  soft: "#666666",
-  muted: "#9e9e9e",
+  ink: "var(--color-ink)",
+  soft: "var(--color-graphite)",
+  muted: "var(--color-ash)",
 };
 
 /* A single hand-drawn divider line, used sparingly. */

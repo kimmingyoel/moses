@@ -219,7 +219,7 @@ export default function UploadPage() {
         >
           <SketchRectVisual
             radius={18}
-            fill="#f5f5f5"
+            fill="var(--color-paper)"
             stroke={dragOver ? "ink" : "muted"}
             shadow={dragOver ? "drop" : "none"}
             wobble={0.4}
@@ -232,14 +232,14 @@ export default function UploadPage() {
               className={`h-14 w-14 text-[var(--color-ink)] transition-transform ${
                 dragOver ? "animate-nudge" : "group-hover:-translate-y-1"
               }`}
-              strokeWidth={2.3}
+              strokeWidth={0.5}
             />
             <p className="font-hand text-center text-[1.35rem] text-[var(--color-ink)]">
               {uploading ? "영수증을 읽고 있어요…" : dragOver ? "그대로 놓으면 시작!" : "여기에 영수증을 올려 주세요"}
             </p>
             {!uploading && (
-              <span className="relative mt-1 inline-flex min-h-[42px] items-center justify-center px-5 font-hand text-[1.05rem] text-[var(--color-paper)] transition-transform group-hover:-translate-y-[1.5px]">
-                <SketchRectVisual radius={18} fill="#262626" stroke="ink" shadow="drop" wobble={0.3} strokeWidth={2.3} seed={5} />
+              <span className="relative mt-1 inline-flex min-h-[42px] items-center justify-center px-5 font-hand text-[1.05rem] text-[var(--color-white)] transition-transform group-hover:-translate-y-[1.5px]">
+                <SketchRectVisual radius={18} fill="var(--color-ink)" stroke="ink" shadow="drop" wobble={0.3} strokeWidth={2.3} seed={5} />
                 <span className="relative">사진 고르기</span>
               </span>
             )}
@@ -272,7 +272,7 @@ export default function UploadPage() {
                 className="relative block h-[108px] w-[76px] shrink-0 touch-none cursor-grab transition-transform duration-150 hover:-translate-y-2 hover:rotate-0 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
                 style={{ transform: `rotate(${rot}deg)` }}
               >
-                <SketchRectVisual radius={8} fill="#f5f5f5" stroke="soft" shadow="soft" strokeWidth={2} wobble={0.35} seed={9 + i} />
+                <SketchRectVisual radius={8} fill="var(--color-paper)" stroke="soft" shadow="soft" strokeWidth={2} wobble={0.35} seed={9 + i} />
                 <Image
                   src={url}
                   alt=""

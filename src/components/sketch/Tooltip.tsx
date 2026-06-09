@@ -167,9 +167,9 @@ export function InfoNote({
       wobble={0.55}
       strokeWidth={2.2}
       className={className}
-      contentClassName={`flex items-start gap-3 px-4 py-3.5 ${contentClassName}`}
+      contentClassName={`flex items-center gap-3 px-4 py-3.5 ${contentClassName}`}
     >
-      <IconAlert className="mt-0.5 h-[22px] w-[22px] shrink-0 text-[var(--color-ink)]" />
+      <IconAlert className="h-[22px] w-[22px] shrink-0 text-[var(--color-ink)]" />
       <div className="min-w-0 font-hand text-[1.02rem] leading-snug text-[var(--color-ink)]">
         {children}
       </div>
