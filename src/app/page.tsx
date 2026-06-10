@@ -9,7 +9,7 @@ import { MosesLogo, SketchRectVisual, HintArrow, Scrawl, IconUpload } from "@/co
 
 const SAMPLE_RECEIPTS = [
   "/samples/sample_1.webp",
-  "/samples/sample_3.webp",
+  "/samples/sample_6.webp",
   "/samples/sample_4.webp",
   "/samples/sample_5.webp",
 ];
