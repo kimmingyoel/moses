@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { SketchFrame, SketchRectVisual, INK, PAPER } from "./Sketch";
+import { SketchFrame, SketchRectVisual } from "./Sketch";
+import { INK, PAPER } from "./palette";
 import { IconAlert } from "./Icons";
 
 type Side = "top" | "bottom" | "left" | "right";

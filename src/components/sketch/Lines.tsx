@@ -2,13 +2,7 @@
 
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { buildWavyLine, buildDoubleWavyLine } from "./handDrawn";
-
-type Tone = "ink" | "soft" | "muted";
-const STROKE: Record<Tone, string> = {
-  ink: "var(--color-ink)",
-  soft: "var(--color-graphite)",
-  muted: "var(--color-ash)",
-};
+import { STROKE, type Tone } from "./palette";
 
 /* A single hand-drawn divider line, used sparingly. */
 export function WavyDivider({

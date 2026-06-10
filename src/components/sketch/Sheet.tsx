@@ -1,7 +1,8 @@
 "use client";
 
 import type { HTMLAttributes, PropsWithChildren } from "react";
-import { SketchRectVisual, PAPER } from "./Sketch";
+import { SketchRectVisual } from "./Sketch";
+import { PAPER } from "./palette";
 
 type SheetProps = PropsWithChildren<HTMLAttributes<HTMLDivElement>> & {
   compact?: boolean;

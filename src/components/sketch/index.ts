@@ -4,10 +4,8 @@ export {
   SketchButton,
   SketchInput,
   SketchUnderline,
-  WHITE,
-  PAPER,
-  INK,
 } from "./Sketch";
+export { WHITE, PAPER, INK, STROKE, type Tone } from "./palette";
 export { WavyDivider } from "./Lines";
 export {
   DoodleReceipt,

@@ -1,6 +1,7 @@
 "use client";
 
 import type { CSSProperties, SVGProps } from "react";
+import { STROKE, type Tone } from "./palette";
 
 /**
  * Small hand-drawn decoration glyphs. Built to match the rest of the sketch
@@ -10,14 +11,6 @@ import type { CSSProperties, SVGProps } from "react";
  * `tone` knob so the stroke can fade for mid-ground decoration.
  */
 
-type Tone = "ink" | "soft" | "muted";
-
-const TONE: Record<Tone, string> = {
-  ink: "var(--color-ink)",
-  soft: "var(--color-graphite)",
-  muted: "var(--color-ash)",
-};
-
 type Props = SVGProps<SVGSVGElement> & {
   tone?: Tone;
   className?: string;
@@ -26,7 +19,7 @@ type Props = SVGProps<SVGSVGElement> & {
 
 function commonProps(tone: Tone) {
   return {
-    stroke: TONE[tone],
+    stroke: STROKE[tone],
     strokeWidth: 2.2 as const,
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
@@ -89,7 +82,7 @@ export function DoodleCoin({ tone = "ink", className, style, ...rest }: Props) {
         textAnchor="middle"
         fontFamily="var(--font-hand)"
         fontSize="16"
-        fill={TONE[tone]}
+        fill={STROKE[tone]}
       >
         ₩
       </text>
@@ -205,7 +198,7 @@ export function DoodlePiggyBank({ tone = "ink", className, style, ...rest }: Pro
       {/* coin slot */}
       <path d="M34 18 Q 42 16, 50 18" {...p} strokeWidth={2.4} />
       {/* eye */}
-      <circle cx="22" cy="28" r="1.6" fill={TONE[tone]} />
+      <circle cx="22" cy="28" r="1.6" fill={STROKE[tone]} />
       {/* curly tail */}
       <path d="M68 30 Q 73 28, 74 32 Q 75 36, 72 36" {...p} strokeWidth={1.8} />
     </svg>

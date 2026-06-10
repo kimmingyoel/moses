@@ -2,13 +2,7 @@
 
 import { useMemo, type CSSProperties, type ReactNode } from "react";
 import { buildArrow } from "./handDrawn";
-
-type Tone = "ink" | "soft" | "muted";
-const STROKE: Record<Tone, string> = {
-  ink: "var(--color-ink)",
-  soft: "var(--color-graphite)",
-  muted: "var(--color-ash)",
-};
+import { STROKE, type Tone } from "./palette";
 
 /**
  * A curved, hand-drawn arrow. By default it sweeps from the top-left toward the

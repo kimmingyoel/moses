@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { STROKE } from "./palette";
 
 /* A clean hand-drawn avatar: one softly-wobbled circle with the initial inside.
  * Consistent across people (no random faces) so a roster reads as tidy, not busy.
@@ -23,7 +24,7 @@ export function Avatar({
   size?: number;
   tone?: Tone;
 }) {
-  const stroke = tone === "ink" ? "var(--color-ink)" : "var(--color-graphite)";
+  const stroke = STROKE[tone];
 
   const { path, initial } = useMemo(() => {
     const seed = hash(name);
