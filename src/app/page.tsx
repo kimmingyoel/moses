@@ -32,6 +32,7 @@ export default function UploadPage() {
     const btn = e.currentTarget;
     const startX = e.clientX;
     const startY = e.clientY;
+    const baseTransform = btn.style.transform;
     let moved = false;
     let dx = 0;
     let dy = 0;
@@ -82,7 +83,7 @@ export default function UploadPage() {
       setDragOver(false);
       const dropped = hitDropZone(ev.clientX, ev.clientY);
       if (dropped) {
-        btn.style.transform = "";
+        btn.style.transform = baseTransform;
         btn.style.zIndex = "";
         btn.style.transition = "";
         void loadSample(url);
@@ -90,11 +91,11 @@ export default function UploadPage() {
         const anim = btn.animate(
           [
             { transform: `translate(${dx}px, ${dy}px) rotate(-3deg) scale(1.05)` },
-            { transform: "translate(0, 0) rotate(0) scale(1)" },
+            { transform: `translate(0, 0) ${baseTransform} scale(1)` },
           ],
           { duration: 320, easing: "cubic-bezier(.34, 1.56, .64, 1)" },
         );
-        btn.style.transform = "";
+        btn.style.transform = baseTransform;
         btn.style.pointerEvents = "none";
         const restore = () => {
           btn.style.zIndex = "";
