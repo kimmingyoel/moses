@@ -736,7 +736,6 @@ function RollingCurrency({ value, active }: { value: number; active?: boolean })
     prevRef.current = value;
     setDiffFrom(fmt(from));
     if (frameRef.current) cancelAnimationFrame(frameRef.current);
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return void setDisplay(value);
     const start = performance.now();
     const tick = (now: number) => {
       const p = Math.min(1, (now - start) / 520);
