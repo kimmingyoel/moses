@@ -5,16 +5,10 @@ import {
   normalizeReceiptExtraction,
   validateReceiptExtraction,
 } from "@/lib/receipt";
+import { MAX_UPLOAD_SIZE, validateUploadFile } from "@/lib/upload";
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const MODEL = "gpt-5.4-mini";
 const DETAIL = "high";
-const SUPPORTED_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-]);
 
 type ExtractionAssets = {
   prompt: string;
@@ -53,22 +47,28 @@ function loadExtractionAssets(): Promise<ExtractionAssets> {
 
 export async function POST(request: Request) {
   try {
+    // Reject grossly oversized uploads from the Content-Length header before
+    // formData() buffers the whole body into memory. The 1MB margin covers
+    // multipart overhead; the exact file.size check below catches the rest.
+    const declaredSize = Number(request.headers.get("content-length"));
+    if (Number.isFinite(declaredSize) && declaredSize > MAX_UPLOAD_SIZE + 1024 * 1024) {
+      return Response.json(
+        { error: "이미지 용량이 너무 커요. 더 작은 사진으로 올려 주세요." },
+        { status: 413 },
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get("file");
 
     if (!(file instanceof File)) {
       return Response.json({ error: "영수증 이미지 파일을 선택해 주세요." }, { status: 400 });
     }
-    if (!SUPPORTED_TYPES.has(file.type)) {
+    const fileError = validateUploadFile(file);
+    if (fileError) {
       return Response.json(
-        { error: "JPG, PNG, WEBP 이미지만 분석할 수 있어요." },
-        { status: 400 },
-      );
-    }
-    if (file.size <= 0 || file.size > MAX_FILE_SIZE) {
-      return Response.json(
-        { error: "20MB 이하의 영수증 이미지를 선택해 주세요." },
-        { status: 400 },
+        { error: fileError },
+        { status: file.size > MAX_UPLOAD_SIZE ? 413 : 400 },
       );
     }
     if (!process.env.OPENAI_API_KEY) {
@@ -148,6 +148,20 @@ export async function POST(request: Request) {
       validation.value,
       crypto.randomUUID(),
     );
+
+    // A non-receipt image (or one too unclear to read) comes back with neither
+    // line items nor a total. Surface it as a clear recognition failure instead
+    // of a "successful" empty draft that misleads the next step into showing an
+    // empty receipt to edit by hand.
+    if (draft.items.length === 0 && draft.totalAmount === 0) {
+      return Response.json(
+        {
+          error:
+            "영수증을 인식하지 못했어요. 영수증이 맞는지, 사진이 흐리거나 잘리지 않았는지 확인하고 다시 올려 주세요.",
+        },
+        { status: 422 },
+      );
+    }
 
     return Response.json({
       extraction: validation.value,

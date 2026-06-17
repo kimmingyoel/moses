@@ -83,9 +83,11 @@ export default function MembersPage() {
   const canProceed = hasReceipt && enoughMembers;
 
   const blockReason = !hasReceipt
-    ? isExtracting
-      ? "영수증을 다 읽으면 넘어갈 수 있어요."
-      : "영수증 분석을 기다리고 있어요."
+    ? extractionError
+      ? "처음 화면에서 영수증을 다시 올려 주세요."
+      : isExtracting
+        ? "영수증을 다 읽으면 넘어갈 수 있어요."
+        : "영수증 분석을 기다리고 있어요."
     : !enoughMembers
       ? "최소 두 명 이상 추가해 주세요"
       : null;
@@ -111,7 +113,7 @@ export default function MembersPage() {
         {extractionError ? (
           <>
             <IconAlert className="h-5 w-5 shrink-0 text-[var(--color-ink)]" />
-            <span className="font-hand text-[1.02rem] text-[var(--color-ink)]">영수증을 읽지 못했어요</span>
+            <span className="font-hand text-[1.02rem] text-[var(--color-ink)]">{extractionError}</span>
           </>
         ) : hasReceipt ? (
           <>

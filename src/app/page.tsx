@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createSession, loadSession, saveSession } from "@/lib/session";
+import { validateUploadFile } from "@/lib/upload";
 import type { ReceiptDraft } from "@/lib/receipt";
 import { MosesLogo, SketchRectVisual, HintArrow, Scrawl, IconUpload } from "@/components/sketch";
 
@@ -132,6 +133,15 @@ export default function UploadPage() {
 
   const extractReceipt = async (file: File) => {
     setError(null);
+    // Catch oversized or unsupported files up front so we don't upload a huge
+    // image only to have the server reject it, and don't bounce the user to the
+    // next screen for a file we already know we can't analyze.
+    const fileError = validateUploadFile(file);
+    if (fileError) {
+      setError(fileError);
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
     setUploading(true);
     const session = saveSession({ ...createSession(), status: "extracting", uploadFileName: file.name });
     router.push("/members");
